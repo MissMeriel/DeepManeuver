@@ -1,0 +1,11 @@
+.idea/*
+deepbillboard/samples/*
+sequences/*
+**/__pycache__/*
+simulation/images/*
+simulation/results/*
+simulation/results*
+simulation/sampledir*/*
+images/
+.idea-old/
+temp/
