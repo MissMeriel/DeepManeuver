@@ -826,11 +826,12 @@ def run_scenario_with_perturbed_billboard(sim, model, pert_billboard, dist_to_bb
                 deviceimg_pert = model.process_image(image_pert).to(device)
                 prediction_pert = float(model(deviceimg_pert).cpu()[0][0])
                 steering = prediction_pert
+                cv2.imshow("car view", np.array(image_pert)[:, :, ::-1])
+                cv2.waitKey(1)
             else:
                 steering = unpert_prediction
-
-        cv2.imshow("car view", np.array(image)[:, :, ::-1])
-        cv2.waitKey(1)
+                cv2.imshow("car view", np.array(image)[:, :, ::-1])
+                cv2.waitKey(1)
 
         # control params
         dt = (sensors["timer"]["time"] - start_time) - runtime

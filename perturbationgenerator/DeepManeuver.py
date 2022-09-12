@@ -117,14 +117,15 @@ class DeepManeuver():
         mask_patch = torch.ones(len(perspective_transforms), *pert_shape).float().to(device)
 
         perturbation = (torch.ones(1, *pert_shape)-0.5).float().to(device)
-        line_mask = torch.ones(1, *pert_shape).float().to(device)
-        for i in range(line_mask.shape[2]):
-            if i % 2:
-                line_mask[:, :, i, :] = line_mask[:, :, i, :] * 0
+
+        # line_mask = torch.ones(1, *pert_shape).float().to(device)
+        # for i in range(line_mask.shape[2]):
+        #     if i % 2:
+        #         line_mask[:, :, i, :] = line_mask[:, :, i, :] * 0
         steering_vector_orig = copy.deepcopy(steering_vector)
         for i in range(iterations):
-            if input_divers:
-                perturbation = perturbation * line_mask
+            # if input_divers:
+            #     perturbation = perturbation * line_mask
             perturbation = perturbation.detach()
             perturbation.requires_grad = True
 
