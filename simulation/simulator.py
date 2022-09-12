@@ -332,15 +332,15 @@ class Simulator():
                 traj.extend([[x,y,p[2]] for x,y in zip(xs,ys)])
             else:
                 traj.append(copy.deepcopy(p))
-        print("set up debug line")
+        # print("set up debug line")
         # set up debug line
         for i,p in enumerate(actual_middle[:-1]):
             points.append([p[0], p[1], p[2]])
             point_colors.append([0, 1, 0, 0.1])
             spheres.append([p[0], p[1], p[2], 0.25])
             sphere_colors.append([1, 0, 0, 0.8])
-        print("spawn point:{}".format(spawn))
-        print("beginning of script:{}".format(middle[0]))
+        # print("spawn point:{}".format(spawn))
+        # print("beginning of script:{}".format(middle[0]))
         # self.plot_trajectory(traj, "Points on Script (Final)", "AI debug line")
         self.centerline = copy.deepcopy(traj)
         self.remaining_centerline = copy.deepcopy(traj)

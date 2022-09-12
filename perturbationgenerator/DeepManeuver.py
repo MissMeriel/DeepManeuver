@@ -33,7 +33,7 @@ class DataSequence(data.Dataset):
 
         return sample
 
-class SuperDeepBillboard():
+class DeepManeuver():
 
     def __init__(self, model, seqpath, direction):
         self.model = model
@@ -256,9 +256,7 @@ class SuperDeepBillboard():
             orig_angles = model(imgs)
             pert_angles = model(perturbed_imgs)
             MAE = (orig_angles - pert_angles).mean()
-            # print("Original outputs:", orig_angles)
-            # print("Adversarial outputs:", pert_angles)
-            # print(f"{MAE=}")
+
             # arrowed_imgs = []
             # orig_arrowed_imgs = []
             # for img, pert_img, a1, a2 in zip(

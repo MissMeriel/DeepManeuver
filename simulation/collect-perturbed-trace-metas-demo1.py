@@ -1,12 +1,12 @@
 import argparse
 
-parser = argparse.ArgumentParser(description="Process paths")
-parser.add_argument(
+PARSER = argparse.ArgumentParser(description="Process paths")
+PARSER.add_argument(
     "path2src", metavar="N", type=str, help="path to source parent dirs"
 )
-parser.add_argument("road_id", metavar="N", type=str, help="road identifier in BeamNG")
-args = parser.parse_args()
-print(args)
+PARSER.add_argument("road_id", metavar="N", type=str, help="road identifier in BeamNG")
+ARGS = PARSER.parse_args()
+print(ARGS)
 
 import warnings
 from functools import wraps
@@ -19,19 +19,10 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Wedge
 from matplotlib.collections import PatchCollection
 
-sys.path.append(f"{args.path2src}/GitHub/BeamNGpy")
-sys.path.append(f"{args.path2src}/GitHub/BeamNGpy/src/")
+sys.path.append(f"{ARGS.path2src}/GitHub/BeamNGpy")
+sys.path.append(f"{ARGS.path2src}/GitHub/BeamNGpy/src/")
 print(sys.path)
 
-from perturbationgenerator import DeepBillboard, SuperDeepBillboard
-
-# from beamngpy import BeamNGpy, Scenario, Vehicle, setup_logging, StaticObject, ScenarioObject
-# from beamngpy import ProceduralCube #,ProceduralCylinder, ProceduralCone, ProceduralBump, ProceduralRing
-# from beamngpy.sensors import Camera, GForces, Electrics, Damage, Timer
-# from scipy.spatial.transform import Rotation as R
-# from ast import literal_eval
-# from scipy import interpolate
-# from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
 import torch
 import cv2
 from PIL import Image
@@ -42,10 +33,12 @@ from torchvision.utils import save_image
 from shapely.geometry import Polygon
 
 # project imports
+from perturbationgenerator import DeepBillboard, DeepManeuver
 from simulator import Simulator
 from models.DAVE2pytorch import DAVE2v3
 
-# globals
+
+#globals
 default_scenario = "industrial"
 default_spawnpoint = "straight1"
 integral, prev_error = 0.0, 0.0
@@ -56,20 +49,20 @@ newdir, new_results_dir = "", ""
 qr_positions = []
 unperturbed_seq = None
 
-# def ignore_warnings(f):
-#     @wraps(f)
-#     def inner(*args, **kwargs):
-#         with warnings.catch_warnings(record=True) as w:
-#             warnings.simplefilter("ignore")
-#             response = f(*args, **kwargs)
-#         return response
-#     return inner
+
+def ignore_warnings(f):
+    @wraps(f)
+    def inner(*ARGS, **kwargs):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("ignore")
+            response = f(*ARGS, **kwargs)
+        return response
+    return inner
 
 
 def get_outcomes(results):
+    """Tally outcomes for a set of test runs of a given perturbation."""
     outcomes_counts = {"D": 0, "LT": 0, "R2NT": 0, "2FAR": 0}
-    # print(results.keys())
-    total = float(len(results["testruns_outcomes"]) - 1)
     for outcome in results["testruns_outcomes"]:
         if "D=" in outcome:
             outcomes_counts["D"] += 1
@@ -83,10 +76,12 @@ def get_outcomes(results):
 
 
 def ms_to_kph(wheelspeed):
+    """Convert m/s to kph."""
     return wheelspeed * 3.6
 
 
 def throttle_PID(kph, dt):
+    """Throttle PID."""
     global integral, prev_error, setpoint
     kp = 0.19
     ki = 0.0001
@@ -102,7 +97,9 @@ def throttle_PID(kph, dt):
     return w
 
 
-def plot_deviation(trajectories, unperturbed_traj, model, centerline, left, right, outcomes, resultsdir="images"):
+def plot_deviation(trajectories, unperturbed_traj, model,
+                   centerline, left, right, outcomes, resultsdir="images"):
+    """Plot trajectories over unperturbed run, generation run, and test runs."""
     global qr_positions
     x = [point[0] for point in unperturbed_traj]
     y = [point[1] for point in unperturbed_traj]
@@ -128,24 +125,17 @@ def plot_deviation(trajectories, unperturbed_traj, model, centerline, left, righ
     for i, t in enumerate(zip(trajectories, outcomes)):
         x = [point[0] for point in t[0]]
         y = [point[1] for point in t[0]]
-        if i == 0 and "sdbb" in model:
+        if i == 0 and "deepman" in model:
             plt.plot(x, y, label="Pert. Run {} ({})".format(i, t[1]), linewidth=5)
         else:
             plt.plot(x, y, label="Pert. Run {} ({})".format(i, t[1]), alpha=0.75)
         i += 1
-    plt.plot(
-        [p[0][0] for p in qr_positions],
-        [p[0][1] for p in qr_positions],
-        "r", linewidth=5,
-    )
+    plt.plot([p[0][0] for p in qr_positions], [p[0][1] for p in qr_positions], "r", linewidth=5)
     failures = 0
     for o in outcomes:
         if o == "LT" or "D" in o:
             failures += 1
-    plt.title(
-        "Trajectories with {} failures={}".format(model, failures),
-        fontdict={"fontsize": 10},
-    )
+    plt.title("Trajectories with {} failures={}".format(model, failures), fontdict={"fontsize": 10})
     # plt.legend()
     if default_spawnpoint == "straight1" and "ZOOMED" not in model:
         plt.xlim([245, 335])
@@ -159,18 +149,17 @@ def plot_deviation(trajectories, unperturbed_traj, model, centerline, left, righ
     elif default_spawnpoint == "curve2":
         plt.xlim([325, 345])
         plt.ylim([-120, -100])
-    elif ( default_scenario == "driver_training" and default_spawnpoint == "approachingfork"):
+    elif (default_scenario == "driver_training" and default_spawnpoint == "approachingfork"):
         plt.xlim([-50, 55])
         plt.ylim([150, 255])
-    # plt.xlim(xlim)
-    # plt.ylim(ylim)
     randstr = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
     plt.savefig("{}/{}-{}.jpg".format(resultsdir, model.replace("\n", "-"), randstr))
     plt.close("all")
     del x, y
 
-# @ignore_warnings
+@ignore_warnings
 def write_results(training_file, results, all_trajs, unperturbed_traj, modelname, technique, direction, lossname, bbsize, its, nl):
+    """Pickle results."""
     results["all_trajs"] = all_trajs
     results["unperturbed_traj"] = unperturbed_traj
     results["modelname"] = modelname
@@ -184,12 +173,18 @@ def write_results(training_file, results, all_trajs, unperturbed_traj, modelname
         pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
 
 
-# return distance between two 3d points
 def distance(a, b):
+    """Return distance between two 3D points."""
     return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
 
 
+def distance2D(a, b):
+    """Return distance between two 2D points."""
+    return math.sqrt(math.pow(a[0] - b[0], 2) + math.pow(a[1] - b[1], 2))
+
+
 def calc_points_of_reachable_set(vehicle_state):
+    """Calculate 3 corners of reachable set triangle."""
     turn_rad = math.radians(30)
     offset = math.radians(90)
     yaw = vehicle_state["yaw"][0]
@@ -217,6 +212,7 @@ def calc_points_of_reachable_set(vehicle_state):
 
 
 def intersection_of_RS_and_road(rs, road_seg):
+    """Calculate overlap between reachable set and current road segment."""
     segpts = copy.deepcopy(road_seg["left"])
     temp = road_seg["right"]
     temp.reverse()
@@ -233,56 +229,39 @@ def intersection_of_RS_and_road(rs, road_seg):
     return x
 
 
-# @ignore_warnings
+@ignore_warnings
 def plot_intersection_with_CV2(vehicle_state, rs, road_seg, intersection, bbox, traj=None):
+    """Plot reachable set intersection with road segment and display using CV2."""
     global qr_positions
     fig, ax = plt.subplots()
     yaw = vehicle_state["yaw"][0]
     patches = []
     radius = 11.1
     # plot LR limits of RS
-    plt.plot(
-        [p[0] for p in rs],
-        [p[1] for p in rs],
-        "tab:purple",
-        label="reachable set (1 sec.)",
-    )
+    plt.plot([p[0] for p in rs], [p[1] for p in rs], "tab:purple", label="reachable set (1 sec.)")
     if traj is not None:
-        plt.plot(
-            [p[0] for p in traj], [p[1] for p in traj], "tab:purple", label="trajectory"
-        )
+        plt.plot([p[0] for p in traj], [p[1] for p in traj], "tab:purple", label="trajectory")
     # plot area of RS
-    wedge = Wedge(
-        (vehicle_state["front"][0], +vehicle_state["front"][1]),
-        radius,
-        math.degrees(yaw) - 30 - 90,
-        math.degrees(yaw) + 30 - 90,
+    wedge = Wedge((vehicle_state["front"][0], +vehicle_state["front"][1]),
+                  radius,
+                  math.degrees(yaw) - 30 - 90, math.degrees(yaw) + 30 - 90,
     )
     patches.append(wedge)
     p = PatchCollection(patches, alpha=0.4)
     colors = np.array([70.0])
     p.set_array(colors)
     ax.add_collection(p)
+    # add vehicle
     x = np.array([bbox[k][0] for k in bbox.keys()])
     y = np.array([bbox[k][1] for k in bbox.keys()])
     plt.plot(x, y, "m", label="car (bounding box)")
     plt.plot([x[0], x[-1]], [y[0], y[-1]], "m", linewidth=1)
     plt.plot([x[4], x[2], x[1], x[-1]], [y[4], y[2], y[1], y[-1]], "m", linewidth=1)
-    # plt.plot([vehicle_state['front'][0]], [vehicle_state['front'][1]], "ms", label="car (front)")
     # add road segment
     for k in road_seg.keys():
-        plt.plot(
-            [road_seg[k][i][0] for i in range(len(road_seg[k]))],
-            [road_seg[k][i][1] for i in range(len(road_seg[k]))],
-            "k",
-        )
+        plt.plot([road_seg[k][i][0] for i in range(len(road_seg[k]))], [road_seg[k][i][1] for i in range(len(road_seg[k]))], "k")
     # add billboard
-    plt.plot(
-        [p[0][0] for p in qr_positions],
-        [p[0][1] for p in qr_positions],
-        linewidth=5,
-        label="billboard",
-    )
+    plt.plot([p[0][0] for p in qr_positions], [p[0][1] for p in qr_positions], linewidth=5, label="billboard")
     plt.title(f"Reachable Set Intersection ({intersection*100:.2f}%)")
     plt.legend()
     plt.axis("square")
@@ -298,17 +277,13 @@ def plot_intersection_with_CV2(vehicle_state, rs, road_seg, intersection, bbox, 
 
 
 def plot_intersection(vehicle_state, rs, road_seg, intersection, bbox):
+    """."""
     fig, ax = plt.subplots()
     yaw = vehicle_state["yaw"][0]
     patches = []
     radius = 11.1
     # plot LR limits of RS
-    plt.plot(
-        [p[0] for p in rs],
-        [p[1] for p in rs],
-        "tab:purple",
-        label="reachable set (1 sec.)",
-    )
+    plt.plot([p[0] for p in rs], [p[1] for p in rs], "tab:purple", label="reachable set (1 sec.)")
     # plot area of RS
     wedge = Wedge(
         (vehicle_state["front"][0], +vehicle_state["front"][1]),
@@ -326,26 +301,17 @@ def plot_intersection(vehicle_state, rs, road_seg, intersection, bbox):
     plt.plot(x, y, "m", label="car (bounding box)")
     plt.plot([x[0], x[-1]], [y[0], y[-1]], "m", linewidth=1)
     plt.plot([x[4], x[2], x[1], x[-1]], [y[4], y[2], y[1], y[-1]], "m", linewidth=1)
-    plt.plot(
-        [vehicle_state["front"][0]],
-        [vehicle_state["front"][1]],
-        "ms",
-        label="car (front)",
-    )
+    plt.plot([vehicle_state["front"][0]], [vehicle_state["front"][1]], "ms", label="car (front)")
     # add road segment
     for k in road_seg.keys():
-        plt.plot(
-            [road_seg[k][i][0] for i in range(len(road_seg[k]))],
-            [road_seg[k][i][1] for i in range(len(road_seg[k]))],
-            "k",
-        )
+        plt.plot([road_seg[k][i][0] for i in range(len(road_seg[k]))], [road_seg[k][i][1] for i in range(len(road_seg[k]))], "k")
     plt.title(f"Reachable Set Intersection ({intersection}%)")
     plt.legend()
     plt.close("all")
 
 
-# with warp
 def overlay_transparent(img1, img2, corners):
+    """Warp and overlay perturbation into sensed image."""
     orig = torch.from_numpy(img1)[None].permute(0, 3, 1, 2) / 255.0
     pert = torch.from_numpy(img2)[None].permute(0, 3, 1, 2) / 255.0
 
@@ -360,14 +326,14 @@ def overlay_transparent(img1, img2, corners):
     patch_coords = torch.from_numpy(patch_coords).float()
 
     # build the transforms to and from image patches
-    try:
-        perspective_transforms = kornia.geometry.transform.get_perspective_transform(
-            src_coords, patch_coords
-        )
-    except Exception as e:
-        print(f"{e=}")
-        print(f"{src_coords=}")
-        print(f"{patch_coords=}")
+    # try:
+    perspective_transforms = kornia.geometry.transform.get_perspective_transform(
+        src_coords, patch_coords
+    )
+    # except Exception as e:
+    #     print(f"{e=}")
+    #     print(f"{src_coords=}")
+    #     print(f"{patch_coords=}")
 
     perturbation_warp = kornia.geometry.transform.warp_perspective(
         pert,
@@ -389,9 +355,9 @@ def overlay_transparent(img1, img2, corners):
     return (perturbed_img.permute(0, 2, 3, 1).numpy()[0] * 255).astype(np.uint8)
 
 
-# uses contour detection
-# @ignore_warnings
+@ignore_warnings
 def get_qr_corners_from_colorseg_image(image):
+    """Find corners of billboard in image using HSV masks and CV2 contour detection."""
     image = np.array(image)
     hsv_image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     light_color = (50, 230, 0)  # (50, 235, 235) #(0, 200, 0)
@@ -418,10 +384,8 @@ def get_qr_corners_from_colorseg_image(image):
     else:
         epsilon = 0.1 * cv2.arcLength(np.float32(contours[1]), True)
         approx = cv2.approxPolyDP(np.float32(contours[1]), epsilon, True)
-
-        contours = np.array([c[0] for c in contours[1]])
         approx = [c[0] for c in approx]
-        # contours = contours.reshape((contours.shape[0], 2))
+
         if len(approx) < 4:
             return [[[0, 0], [0, 0], [0, 0], [0, 0]]], None
 
@@ -447,54 +411,6 @@ def get_qr_corners_from_colorseg_image(image):
             return approx, leftedge, rightedge, center
 
         approx, le, re, center = sortClockwise(approx)
-        for i, c in enumerate(le):
-            cv2.circle(
-                image,
-                tuple([int(x) for x in c]),
-                radius=1,
-                color=(100 + i * 20, 0, 0),
-                thickness=2,
-            )  # blue
-        for i, c in enumerate(re):
-            cv2.circle(
-                image,
-                tuple([int(x) for x in c]),
-                radius=1,
-                color=(0, 0, 100 + i * 20),
-                thickness=2,
-            )  # blue
-        cv2.circle(
-            image, tuple(center), radius=1, color=(203, 192, 255), thickness=2
-        )  # lite pink
-        if len(approx) > 3:
-            cv2.circle(
-                image,
-                tuple([int(x) for x in approx[0]]),
-                radius=1,
-                color=(0, 255, 0),
-                thickness=2,
-            )  # green
-            cv2.circle(
-                image,
-                tuple([int(x) for x in approx[2]]),
-                radius=1,
-                color=(0, 0, 255),
-                thickness=2,
-            )  # red
-            cv2.circle(
-                image,
-                tuple([int(x) for x in approx[3]]),
-                radius=1,
-                color=(255, 255, 255),
-                thickness=2,
-            )  # white
-            cv2.circle(
-                image,
-                tuple([int(x) for x in approx[1]]),
-                radius=1,
-                color=(147, 20, 255),
-                thickness=2,
-            )  # pink
 
         keypoints = [
             [tuple(approx[0]), tuple(approx[3]), tuple(approx[1]), tuple(approx[2])]
@@ -503,24 +419,23 @@ def get_qr_corners_from_colorseg_image(image):
 
 
 def is_billboard_fully_viewable(image, qr_corners):
+    """Determine if billboard is partially cutoff or very close to being cutoff in sensed image."""
     pixel_epsilon = 20
     imageheight = image.size[1]
     imagewidth = image.size[0]
     for corners in qr_corners:
         # ORDER: upper left, upper right, lower left, lower right (opencv image indices reversed)
-        if (
-            corners[0][0] <= pixel_epsilon
-            or corners[0][1] <= pixel_epsilon
-            or abs(imagewidth - corners[3][0]) <= pixel_epsilon
-            or abs(imageheight - corners[3][1]) <= pixel_epsilon
+        if (corners[0][0] <= pixel_epsilon or corners[0][1] <= pixel_epsilon
+            or abs(imagewidth - corners[3][0]) <= pixel_epsilon or abs(imageheight - corners[3][1]) <= pixel_epsilon
         ):
             return False
     return True
 
 
-def deepbillboard(
-    model, sequence, direction, device=torch.device("cuda"), bb_size=5, iterations=400, noise_level=25, input_divers=False,
+def deepbillboard(model, sequence, direction, device=torch.device("cuda"),
+                  bb_size=5, iterations=400, noise_level=25, input_divers=False,
 ):
+    """Run parameterized DeepBillboard on a given image sequence."""
     deepbb = DeepBillboard.DeepBillboard(model, sequence, direction)
     img_arr = [hashmap["image"] for hashmap in sequence]
     img_patches = [hashmap["bbox"][0] for hashmap in sequence]
@@ -532,13 +447,14 @@ def deepbillboard(
             temp.append(tup[1])
         new_img_patches.append(copy.deepcopy(temp))
     perturbed_billboard_images = deepbb.perturb_images(img_arr, np.array(new_img_patches), model, device=device,
-                                                        bb_size=bb_size, iterations=iterations, noise_level=noise_level,
-                                                        input_divers=input_divers,
+                                                       bb_size=bb_size, iterations=iterations,
+                                                       noise_level=noise_level, input_divers=input_divers,
     )
     return perturbed_billboard_images
 
 
 def get_percent_of_image(coords, img):
+    """Find percentage of the sensed image that the perturbation occupies."""
     coords = [tuple(i) for i in coords[0]]
     coords = tuple([coords[0], coords[1], coords[3], coords[2]])
     patch_size = Polygon(coords).area
@@ -546,11 +462,12 @@ def get_percent_of_image(coords, img):
     return patch_size / img_size
 
 
-def superdeepbillboard(
+def deepmaneuver(
     model, sequence, direction, steering_vector, bb_size=5, iterations=400, noise_level=25,
     dist_to_bb=None, last_billboard=None, input_divers=True, loss_fxn="inv23", device=torch.device("cuda"),
 ):
-    sdbb = SuperDeepBillboard.SuperDeepBillboard(model, sequence, direction)
+    """Run parameterized DeepManeuver on a given image sequence."""
+    deepman = DeepManeuver.DeepManeuver(model, sequence, direction)
     img_arr = [hashmap["image"] for hashmap in sequence]
     img_patches = [hashmap["bbox"][0] for hashmap in sequence]
     new_img_patches = []
@@ -566,7 +483,7 @@ def superdeepbillboard(
     else:
         steering_vector.append(constraint)
     tensorized_steering_vector = torch.as_tensor(np.array(steering_vector, dtype=np.float64), dtype=torch.float)
-    perturbed_billboard_images, y, MAE = sdbb.perturb_images(
+    perturbed_billboard_images, y, MAE = deepman.perturb_images(
         img_arr, np.array(new_img_patches), model, tensorized_steering_vector,
         device=device, bb_size=bb_size, iterations=iterations,
         noise_level=noise_level, last_billboard=last_billboard,
@@ -576,6 +493,7 @@ def superdeepbillboard(
 
 
 def run_scenario(sim, model, direction, bb_size=5, iterations=400, noise_level=25, dist_to_bb_cuton=37, resultsdir="images", input_divers=False):
+    """Run generator and test wrapper for DeepBillboard, then collate results."""
     global default_spawnpoint, unperturbed_traj, unperturbed_steer, unperturbed_seq
     starttime = time.time()
     sequence, unperturbed_results = run_scenario_to_collect_sequence(sim, model, cuton=dist_to_bb_cuton)
@@ -645,13 +563,14 @@ def run_scenario(sim, model, direction, bb_size=5, iterations=400, noise_level=2
     return results
 
 
-def run_scenario_superdeepbillboard(sim, model, direction, dist_to_bb_cuton=26, dist_to_bb_cutoff=0, device=torch.device("cuda"),
+def run_scenario_deepmaneuver(sim, model, direction, dist_to_bb_cuton=26, dist_to_bb_cutoff=0, device=torch.device("cuda"),
                                     collect_sequence_results=None, bb_size=5, iterations=400, noise_level=25, resultsdir="images",
                                     input_divers=True, loss_fxn="inv23",
 ):
+    """Run generator and test wrapper for DeepManeuver, then collate results."""
     global default_spawnpoint, unperturbed_traj, unperturbed_steer
     starttime = time.time()
-    pert_billboards, perturbation_run_results = run_scenario_for_superdeepbillboard(
+    pert_billboards, perturbation_run_results = run_scenario_for_deepmaneuver(
         sim,
         model,
         direction,
@@ -666,10 +585,10 @@ def run_scenario_superdeepbillboard(sim, model, direction, dist_to_bb_cuton=26, 
     )
     timetorun = time.time() - starttime
     print("Time to perturb:", timetorun)
-    plt.title("sdbb final pert_billboard")
+    plt.title("deepman final pert_billboard")
     plt.imshow(pert_billboards[-1])
     plt.savefig(
-        "{}/pert_billboard-sdbb-{}-{}-{}.jpg".format(
+        "{}/pert_billboard-deepman-{}-{}-{}.jpg".format(
             resultsdir, bb_size, iterations, noise_level
         )
     )
@@ -712,7 +631,7 @@ def run_scenario_superdeepbillboard(sim, model, direction, dist_to_bb_cuton=26, 
     results["testruns_trajs"] = pert_trajs
     results["testruns_all_ys"] = Ys
     outstring = (
-        f"\nRESULTS FOR SDBB {model._get_name()} {default_spawnpoint} {direction=} {bb_size=} {iterations=} {noise_level=}: \n"
+        f"\nRESULTS FOR DeepManeuver {model._get_name()} {default_spawnpoint} {direction=} {bb_size=} {iterations=} {noise_level=}: \n"
         f"Avg. deviation from expected trajectory: \n"
         f"unperturbed:\t{results['unperturbed_deviation']}\n"
         f"pert.run: \t{results['pertrun_deviation']}\n"
@@ -733,9 +652,9 @@ def run_scenario_superdeepbillboard(sim, model, direction, dist_to_bb_cuton=26, 
 
 
 def run_scenario_to_collect_sequence(sim, model, cuton=40, device=torch.device("cuda")):
+    """Run the scenario unperturbed to collect a baseline."""
     global unperturbed_steer, unperturbed_seq
     global integral, prev_error, setpoint
-    print("run_scenario_to_collect_sequence")
     sim.restart()
     sensors = sim.get_sensor_readings()
     integral, runtime = 0.0, 0.0
@@ -808,11 +727,6 @@ def run_scenario_to_collect_sequence(sim, model, cuton=40, device=torch.device("
         final_img = image
         all_ys.append(steering)
 
-        rs = calc_points_of_reachable_set(vehicle_state)
-        road_seg = sim.nearest_seg()  # sim.roadmiddle, vehicle_state['front'])
-        x = intersection_of_RS_and_road(rs, road_seg)
-        # plot_intersection_with_CV2(vehicle.state, rs, road_seg, x, vehicle.get_bbox())
-
         if damage > 0.0:
             print(f"Damage={damage:.3f}, exiting...")
             outcome = "D={}".format(round(damage, 2))
@@ -823,7 +737,6 @@ def run_scenario_to_collect_sequence(sim, model, cuton=40, device=torch.device("
             break
 
         sim.bng.step(1, wait=True)
-        # last_steering_from_sim = sensors['electrics']['steering_input']
     unperturbed_steer = steering_inputs
     cv2.destroyAllWindows()
 
@@ -849,7 +762,8 @@ def run_scenario_to_collect_sequence(sim, model, cuton=40, device=torch.device("
 
 
 def run_scenario_with_perturbed_billboard(sim, model, pert_billboard, dist_to_bb_cuton=None, dist_to_bb_cutoff=None):
-    global setpoint
+    """Run test wrapper to determine effectiveness of newly generated perturbation."""
+    global setpoint, integral, prev_error
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     sim.restart()
     sensors = sim.get_sensor_readings()
@@ -887,9 +801,9 @@ def run_scenario_with_perturbed_billboard(sim, model, pert_billboard, dist_to_bb
         percents.append(percent_of_img)
         distances.append(dist_to_bb)
 
-        rs = calc_points_of_reachable_set(vehicle_state)
-        road_seg = sim.nearest_seg()
-        x = intersection_of_RS_and_road(rs, road_seg)
+        # rs = calc_points_of_reachable_set(vehicle_state)
+        # road_seg = sim.nearest_seg()
+        # x = intersection_of_RS_and_road(rs, road_seg)
         # plot_intersection_with_CV2(vehicle.state, rs, road_seg, round(x, 2), vehicle.get_bbox(), traj=traj)
 
         if bbox_img is not None and kph > 29:
@@ -981,11 +895,8 @@ def run_scenario_with_perturbed_billboard(sim, model, pert_billboard, dist_to_bb
     return results
 
 
-def distance2D(a, b):
-    return math.sqrt(math.pow(a[0] - b[0], 2) + math.pow(a[1] - b[1], 2))
-
-
 def law_of_cosines(A, B, C):
+    """Law of Cosines finds angle between three xy points."""
     dist_AB = distance2D(A[:2], B[:2])
     dist_BC = distance2D(B[:2], C[:2])
     dist_AC = distance2D(A[:2], C[:2])
@@ -1001,14 +912,11 @@ def car_facing_billboard(vehicle_state):
     return math.degrees(alpha) > 179.0
 
 
-def run_scenario_for_superdeepbillboard(
-    sim, model, direction,
-    dist_to_bb_cuton=26, dist_to_bb_cutoff=26,
-    bb_size=5, iterations=100, noise_level=25,
-    input_divers=True,
-    loss_fxn="inv23",
-    device=torch.device("cuda"),
+def run_scenario_for_deepmaneuver(sim, model, direction, dist_to_bb_cuton=26, dist_to_bb_cutoff=26, bb_size=5,
+                                  iterations=100, noise_level=25, input_divers=True, loss_fxn="inv23",
+                                  device=torch.device("cuda"),
 ):
+    """Run generation phase of DeepManeuver."""
     global integral, prev_error, setpoint
     integral, runtime = 0.0, 0.0
     prev_error = setpoint
@@ -1046,7 +954,7 @@ def run_scenario_for_superdeepbillboard(
         percent_of_img = get_percent_of_image(qr_corners, image)
         percents.append(percent_of_img)
         distances.append(dist_to_bb)
-        # stopping conditions
+
         if bbox_img is None and kph > 29 and round(dist_to_bb, 0) <= dist_to_bb_cuton:
             bb_viewed_window = np.roll(bb_viewed_window, 1)
             bb_viewed_window[0] = 0
@@ -1061,31 +969,18 @@ def run_scenario_for_superdeepbillboard(
             rs = calc_points_of_reachable_set(vehicle_state)
             road_seg = sim.nearest_seg()  # sim.roadmiddle, vehicle.state['front'])
             x = round(intersection_of_RS_and_road(rs, road_seg), 2)
-            # plot_intersection_with_CV2(vehicle.state, rs, road_seg, x, vehicle.get_bbox())
 
-            # stopping conditions
             if damage > 0.0:
-                print(
-                    "Damage={} at timestep={}, exiting...".format(
-                        damage, round(runtime, 2)
-                    )
-                )
+                print(f"Damage={damage} at timestep={runtime:.2f}, exiting...")
                 outcome = "D={}".format(round(damage, 2))
                 break
 
-            if (kph > 29 and abs(x - dist_to_bb_cutoff) <= 0.02) or (
-                kph > 29 and x <= dist_to_bb_cutoff
-            ):
+            if (kph > 29 and abs(x - dist_to_bb_cutoff) <= 0.02) or (kph > 29 and x <= dist_to_bb_cutoff):
                 print(f"RS overlap={x}, exiting...")
                 outcome = f"RS overlap={x}"
                 break
 
-        # Run SuperDeepbillboard
-        if (
-            bbox_img is not None
-            and kph > 29
-            and round(dist_to_bb, 0) <= dist_to_bb_cuton
-        ):  # and (steps % 2 < 1):
+        if (bbox_img is not None and kph > 29 and round(dist_to_bb, 0) <= dist_to_bb_cuton):
             sequence.append(
                 {
                     "image": model.process_image(image)[0],
@@ -1093,7 +988,6 @@ def run_scenario_for_superdeepbillboard(
                     "colorseg_img": model.process_image(colorseg_img)[0],
                 }
             )
-            # image.save(f"{new_sampletaking_dir}/sample-{len(sequence)}.jpg")
             sequence2 = copy.deepcopy(sequence)
             steering_vector2 = copy.deepcopy(steering_vector)
             for i in unperturbed_seq:
@@ -1111,7 +1005,7 @@ def run_scenario_for_superdeepbillboard(
             # sequence2.append(unperturbed_seq[len(sequence)-1])
             # steering_vector2.append(1)
 
-            pert_billboard, y, MAE = superdeepbillboard(
+            pert_billboard, y, MAE = deepmaneuver(
                 model,
                 sequence2,
                 direction,
@@ -1158,11 +1052,7 @@ def run_scenario_for_superdeepbillboard(
         sim.drive(throttle=throttle, steering=steering, brake=0.0)
         all_ys.append(steering)
 
-        if (
-            bbox_img is not None
-            and kph > 29
-            and round(dist_to_bb, 0) <= dist_to_bb_cuton
-        ):
+        if (bbox_img is not None and kph > 29 and round(dist_to_bb, 0) <= dist_to_bb_cuton):
             origimg = model.process_image(np.asarray(origimage)).to(device)
             unperturbed_predictions.append(float(model(origimg).cpu()[0][0]))
             perturbed_predictions.append(steering)
@@ -1195,6 +1085,7 @@ def run_scenario_for_superdeepbillboard(
 
 
 def make_results_dirs(newdir, technique, bbsize, nl, its, cuton, rsc, input_div=None, timestr=None):
+    """Create directory for all results of this run"""
     new_results_dir = "results/{}/results-{}-{}-{}-{}-cuton{}-rs{}-inputdiv{}-{}-{}".format(
                         newdir, technique, bbsize, nl, its, cuton, rsc, input_div, timestr,
                         "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)),
@@ -1210,20 +1101,20 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     start = time.time()
     direction = "left"
-    techniques = ["sdbb"]  # [["sdbb", "dbb-orig", ] ,
+    techniques = ["deepman", "dbb-orig", "dbb"]
     model_name = "DAVE2v3.pt"
     model = torch.load(f"../models/weights/{model_name}", map_location=device).eval()
     lossname, new_results_dir = "", ""
     bbsizes = [5, 10, 15]
-    iterations = [50]
-    noiselevels = [15]
+    iterations = [400]
+    noiselevels = [10, 15, 20, 1000]
     rscs = [0.60]
-    cutons = [21]
-    input_divs = [False]
+    cutons = [20, 24, 28]
+    input_divs = [False, True]
     sim = Simulator(
         scenario_name=default_scenario,
         spawnpoint_name=default_spawnpoint,
-        path2sim=args.path2src,
+        path2sim=ARGS.path2src,
         steps_per_sec=15,
     )
     samples = 3
@@ -1246,7 +1137,7 @@ def main():
                                 for i in range(samples):
                                     all_trajs, all_outcomes = [], []
                                     localtime = time.localtime()
-                                    timestr = "{}_{}-{}_{}".format(localtime.tm_mon, localtime.tm_mday, localtime.tm_hour,localtime.tm_min)
+                                    timestr = "{}_{}-{}_{}".format(localtime.tm_mon, localtime.tm_mday, localtime.tm_hour, localtime.tm_min)
 
                                     if technique == "dbb":
                                         lossname = "MDirE"
@@ -1288,12 +1179,12 @@ def main():
                                         new_results_dir, training_file = make_results_dirs(
                                             newdir, technique, bbsize, nl, its, cuton, rsc, input_div, timestr
                                         )
-                                        results = run_scenario_superdeepbillboard(
+                                        results = run_scenario_deepmaneuver(
                                             sim, model, direction,
                                             device=device, collect_sequence_results=unperturbed_results,
                                             bb_size=bbsize, iterations=its, noise_level=nl,
                                             dist_to_bb_cuton=cuton, dist_to_bb_cutoff=rsc, resultsdir=new_results_dir,
-                                            input_divers=input_div,  loss_fxn=lossname,
+                                            input_divers=input_div, loss_fxn=lossname,
                                         )
                                         all_trajs.append(results["pertrun_traj"])
                                         all_outcomes.append(results["pertrun_outcome"])
@@ -1305,7 +1196,7 @@ def main():
                                                     technique, direction, lossname, bbsize, its, nl
                                     )
                                     plot_deviation(all_trajs, unperturbed_traj,
-                                                   "{}-{}-{}\nDOF{}-noisevar{}-cuton{}".format(technique, direction, lossname, bbsize, nl, cuton),
+                                                   f"{technique}-{direction}-{lossname}\nDOF{bbsize}-noisevar{nl}-cuton{cuton}",
                                                     sim.centerline_interpolated, sim.roadleft, sim.roadright, all_outcomes, resultsdir=new_results_dir,
                                     )
     sim.bng.close()
