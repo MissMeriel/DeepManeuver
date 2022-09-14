@@ -130,8 +130,9 @@ class Simulator():
             elif road_id == "8293": # winding mountain road, lanelines
                 return {'pos': (-556.185, 386.985, 145.5), 'rot': None, 'rot_quat': self.turn_X_degrees((0, 0, -0.702719, 0.711467), 120)}
             elif road_id == "8205": # starting line, same as default
-                # return {'pos': (501.36,178.62,131.69), 'rot': None, 'rot_quat': turn_X_degrees((0, 0, -0.702719, 0.711467), 0)} # orig
-                return {'pos': (517.08, 178.84, 132.2), 'rot': None, 'rot_quat': (-0.0076747848652303, -0.0023407069966197, -0.70286595821381, 0.71127712726593)}  # closer
+                # return {'pos': (501.36,178.62,131.69), 'rot': None, 'rot_quat': self.turn_X_degrees((0, 0, -0.702719, 0.711467), 0)} # orig
+                return {'pos': (517.08, 178.84, 132.2), 'rot': None, 'rot_quat': (-0.0077, -0.0023, -0.7029, 0.7113)}  # closer
+                # return {'pos': (529.553, 179.424, 131.96), 'rot': None, 'rot_quat': (-0.0077, -0.0023, -0.7029, 0.7113)}  # even closer
             elif road_id == "8185":  # bridge, lanelines
                 return {'pos': (174.92, -289.67, 120.67), 'rot': None, 'rot_quat': self.turn_X_degrees((0, 0, -0.702719, 0.711467), 180)}
             else: # default

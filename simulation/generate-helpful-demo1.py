@@ -303,6 +303,7 @@ def overlay_transparent(img1, img2, corners):
         print(f"{e=}")
         print(f"{src_coords=}")
         print(f"{patch_coords=}")
+        return img1
 
     perturbation_warp = kornia.geometry.transform.warp_perspective(
         pert,
