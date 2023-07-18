@@ -1,6 +1,7 @@
 # DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles
 
-Tool and study data for DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles.
+This repo contains the tool, paper, and study data for "DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles".
+DOI forthcoming.
 
 We argue that for adversarial testing perturbations to be effective on autonomous vehicles, they must account for the subtle interplay between the DNN and vehicle states.
 Building on that insight, we develop DeepManeuver, an automated framework that interleaves adversarial test generation with vehicle trajectory physics simulation. 
@@ -10,18 +11,36 @@ Thus, as the vehicle moves along a trajectory, DeepManeuver enables the refineme
 (3) result in multi-target maneuvers that require fulfillment of vehicle state sequences (e.g. reaching locations in a road to navigate a tight turn).
 
 **Example trajectory of DeepManeuver versus state-of-the-art techniques**
-![sample trajs](paperfigures/singletarget-example.jpg)
+![sample trajs](docs/figures/singletarget-example.jpg)
 
-**Example billboards by resolution**
+**Example output billboards by resolution**
 
 | 3x3 resolution                                | 5x5 resolution                                | 20x20 resolution                                  |
 |-----------------------------------------------|-----------------------------------------------|---------------------------------------------------|
-| ![3x3](paperfigures/example-bbs/pert-3x3.jpg) | ![5x5](paperfigures/example-bbs/pert-5x5.png) | ![20x20](paperfigures/example-bbs/pert-20x20.png) |
+| ![3x3](docs/figures/example-bbs/pert-3x3.jpg) | ![5x5](docs/figures/example-bbs/pert-5x5.png) | ![20x20](docs/figures/example-bbs/pert-20x20.png) |
 
 [//]: # (## Running the Demo)
 
+**Repository structure:**
+```python
+./
+├───data # paper study data
+├───docs # documentation and figures
+│   └───figures
+├───paper # paper and appendix
+├───study # scripts to reproduce paper study results
+└───tools
+    ├───models # steering DNNs
+    ├───perturbation_generator # DeepManeuver and DeepBillboard
+    └───simulation # run DeepManeuver in simulation
+        ├───dataset-collection # scripts to collect data for model training
+        ├───posefiles # environment configuration files
+        ├───results # perturbation run results and metadata
+        └───system-tests # test simulation setup
+```
+
 ## Study Data
-Scripts to recreate the tables and figures can be found in the ./study directory.
+Scripts to recreate the tables and figures can be found in the `./study` directory.
 
 
 ## Installation
