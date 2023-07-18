@@ -1,0 +1,66 @@
+PROCEDURAL CUBE
+BEFORE t
+198.515|E|libbeamng.lua.V.updateGFX|Object position: vec3(209.449,-134.32,43.8665)
+198.518|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.018549133092165,0.035547599196434,0.9817670583725,-0.18581101298332)
+
+JUST PAST t
+198.515|E|libbeamng.lua.V.updateGFX|Object position: vec3(209.449,-134.32,43.8665)
+198.518|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.018549133092165,0.035547599196434,0.9817670583725,-0.18581101298332)
+
+CREST OF ROAD
+294.584|E|libbeamng.lua.V.updateGFX|Object position: vec3(190.648,-112.639,44.2627)
+294.585|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.028553524985909,-0.025697918608785,0.82099783420563,0.56963753700256)
+
+
+PROCEDURAL CUBE TOPO 1.1
+NEAR CUT-THROUGH
+255.675|E|libbeamng.lua.V.updateGFX|Object position: vec3(284.909,-66.7247,42.7745)
+255.677|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.0043188789859414,-0.00046643053065054,-0.33690032362938,0.94153028726578)
+
+PAST CUT-THROUGH
+306.305|E|libbeamng.lua.V.updateGFX|Object position: vec3(291.409,-74.5948,42.7725)
+306.307|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.0034987204708159,-0.00061765912687406,-0.33860194683075,0.94092309474945)
+
+
+400.646|E|libbeamng.lua.V.updateGFX|Object position: vec3(301.259,-83.0026,42.8405)
+400.646|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.0016627161530778,0.00650954246521,-0.35758674144745,0.93385589122772)
+
+NEAR SECOND CUT-THROUGH
+416.740|E|libbeamng.lua.V.updateGFX|Object position: vec3(306.01,-88.3337,43.035)
+416.741|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.015586353838444,0.01017502322793,-0.35764956474304,0.93367034196854)
+
+
+PROCEDURAL CUBE TOPO 2.1
+LEFT SIDE
+512.686|E|libbeamng.lua.V.updateGFX|Object position: vec3(163.979,-155.876,43.753)
+512.687|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.016301870346069,0.0086119985207915,0.028336068615317,0.99942851066589)
+
+553.070|E|libbeamng.lua.V.updateGFX|Object position: vec3(162.416,-163.437,44.0351)
+553.071|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.016658393666148,0.0089397598057985,0.02481073141098,0.99951338768005)
+
+648.611|E|libbeamng.lua.V.updateGFX|Object position: vec3(149.171,-175.913,44.6322)
+648.611|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.015528997406363,-0.011611518450081,0.24423360824585,0.96952253580093)
+
+
+
+
+112.941|E|libbeamng.lua.V.updateGFX|Object position: vec3(163.907,-163.369,45.4505)
+112.943|E|libbeamng.lua.V.updateGFX|Object position: vec3(160.805,-163.38,45.399)
+112.943|E|libbeamng.lua.V.updateGFX|Object position: vec3(160.604,-163.341,46.9127)
+112.944|E|libbeamng.lua.V.updateGFX|Object position: vec3(162.35,-163.425,45.429)
+112.945|E|libbeamng.lua.V.updateGFX|Object position: vec3(162.409,-163.444,43.9094)
+112.946|E|libbeamng.lua.V.updateGFX|Object position: vec3(163.669,-163.258,47.0273)
+112.947|E|libbeamng.lua.V.updateGFX|Object position: vec3(170.179,-111.787,44.6669)
+112.947|E|libbeamng.lua.V.updateGFX|Object position: vec3(163.932,-163.518,43.9377)
+112.948|E|libbeamng.lua.V.updateGFX|Object position: vec3(160.887,-163.366,43.8803)
+112.949|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.015700520947576,0.0051089241169393,-0.05105347186327,0.99855947494507)
+112.951|E|libbeamng.lua.V.updateGFX|Object position: vec3(162.161,-163.448,46.9499)
+112.951|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.019713267683983,0.01253102812916,0.08015801012516,0.99650847911835)
+112.952|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.0248082280159,0.013044510968029,0.0946414321661,0.99511677026749)
+112.953|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.013989540748298,0.0067114629782736,0.022446725517511,0.99962764978409)
+112.954|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.016829585656524,0.0088017713278532,0.023555336520076,0.99954211711884)
+112.954|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.12273237109184,-0.0040190275758505,-0.065044313669205,0.99029797315598)
+112.955|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(-0.052491948008537,-0.019131809473038,0.14360591769218,0.98805665969849)
+112.956|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.017259556800127,0.0087208431214094,0.024632008746266,0.99950963258743)
+112.957|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.017108859494328,0.0096783433109522,0.031565610319376,0.99930840730667)
+112.957|E|libbeamng.lua.V.updateGFX|Object rotation (quat): quat(0.022077800706029,0.0045893751084805,-0.061186045408249,0.99787163734436)
