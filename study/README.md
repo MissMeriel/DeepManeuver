@@ -5,7 +5,8 @@ This subdirectory contains the scripts to reproduce the results tables and figur
 First download the study data to the `./data` directory:
 
 ```bash
-curl -L "<permalink-to-study-data>"
+mkdir ../data
+curl -L "<permalink-to-study-data>" ../data
 ```
 
 ## Table and Figure generation
