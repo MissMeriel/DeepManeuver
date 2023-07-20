@@ -1,6 +1,6 @@
 # DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles
 
-This repo contains the tool, paper, and study data for "DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles".
+This repo contains the tools, paper, and study data for "DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles".
 DOI forthcoming.
 
 We argue that for adversarial testing perturbations to be effective on autonomous vehicles, they must account for the subtle interplay between the DNN and vehicle states.

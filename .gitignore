@@ -1,6 +1,7 @@
 .idea/*
 deepbillboard/samples/*
 sequences/*
+tools/simulation/results/*
 **/__pycache__/*
 simulation/images/*
 simulation/results/*

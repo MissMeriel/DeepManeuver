@@ -10,11 +10,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 import sys, shutil, logging, random, string, time, copy, os
 
-sys.path.append(f'{args.path2src}/GitHub/DAVE2-Keras')
-sys.path.append(f'{args.path2src}/GitHub/superdeepbillboard')
-sys.path.append(f'{args.path2src}/GitHub/BeamNGpy')
 sys.path.append(f'{args.path2src}/GitHub/BeamNGpy/src/')
-from perturbation_generator import DeepBillboard, DeepManeuver
+sys.path.append(f'{os.getcwd()}/../')
+sys.path.append(f'{os.getcwd()}/../models')
+
+from deepbillboard import DeepBillboard
+from deepmaneuver import DeepManeuver
 from beamngpy import BeamNGpy, Scenario, Vehicle, setup_logging, StaticObject, ScenarioObject
 from beamngpy import ProceduralCube #,ProceduralCylinder, ProceduralCone, ProceduralBump, ProceduralRing
 from beamngpy.sensors import Camera, GForces, Electrics, Damage, Timer
@@ -185,7 +186,6 @@ def create_ai_line_from_road_with_interpolation(spawn, bng):
     bng.add_debug_line(points, point_colors,
                        spheres=spheres, sphere_colors=sphere_colors,
                        cling=True, offset=0.1)
-    # plot_trajectory(traj, "Points on Script (Final)", "AI debug line")
     centerline = copy.deepcopy(traj)
     remaining_centerline = copy.deepcopy(traj)
     centerline_interpolated = copy.deepcopy(traj)
@@ -706,7 +706,6 @@ def run_scenario_for_deepmaneuver(vehicle, bng, model, spawn, direction, dist_to
             detected_runtimes.append(runtime)
             detected_distances.append(dist_to_bb)
             detected_percents.append(percent_of_img)
-            almost_left_track = has_car_almost_left_track(vehicle.state['front'], centerline_interpolated)
             rs = calc_points_of_reachable_set(vehicle.state)
             road_seg = nearest_seg(roadmiddle, vehicle.state['front'], roadleft, roadright)
             x = intersection_of_RS_and_road(rs, road_seg)
@@ -719,11 +718,6 @@ def run_scenario_for_deepmaneuver(vehicle, bng, model, spawn, direction, dist_to
                 print("Damage={} at timestep={}, exiting...".format(damage, round(runtime, 2)))
                 outcome = "D={}".format(round(damage, 2))
                 break
-
-            # if kph > 29 and has_car_almost_left_track(vehicle.state['front'], centerline_interpolated) and dist_to_bb < dist_to_bb_cuton:
-            #     print("Almost left track, exiting...")
-            #     outcome = "LT"
-            #     break
 
             if (kph > 29 and abs(x - dist_to_bb_cutoff) <= 0.02) or (kph > 29 and x <= dist_to_bb_cutoff):
                 print(f"RS overlap={x}, exiting...")

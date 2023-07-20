@@ -11,13 +11,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 import logging, random, string, time, copy, os, sys, shutil
 
-sys.path.append(f'{args.path2src}/GitHub/DAVE2-Keras')
-sys.path.append(f'{args.path2src}/GitHub/superdeepbillboard')
-sys.path.append(f'{args.path2src}/GitHub/BeamNGpy')
 sys.path.append(f'{args.path2src}/GitHub/BeamNGpy/src/')
-print(sys.path)
+sys.path.append(f'{os.getcwd()}/../')
+sys.path.append(f'{os.getcwd()}/../models')
 
-from perturbation_generator import DeepBillboard, DeepManeuver
+from deepbillboard import DeepBillboard
+from deepmaneuver import DeepManeuver
 from beamngpy import BeamNGpy, Scenario, Vehicle, setup_logging, StaticObject, ScenarioObject
 from beamngpy import ProceduralCube #,ProceduralCylinder, ProceduralCone, ProceduralBump, ProceduralRing
 from beamngpy.sensors import Camera, GForces, Electrics, Damage, Timer
@@ -244,8 +243,6 @@ def create_ai_line_from_road_with_interpolation(spawn, bng):
     bng.add_debug_line(points, point_colors,
                        spheres=spheres, sphere_colors=sphere_colors,
                        cling=True, offset=0.1)
-    print("spawn point:{}".format(spawn))
-    print("beginning of script:{}".format(middle[0]))
     centerline = copy.deepcopy(traj)
     remaining_centerline = copy.deepcopy(traj)
     centerline_interpolated = copy.deepcopy(traj)

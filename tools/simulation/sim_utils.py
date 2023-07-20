@@ -28,7 +28,8 @@ from matplotlib.collections import PatchCollection
 import numpy as np
 from matplotlib import pyplot as plt
 import logging, random, string, time, copy, os, sys, shutil
-from perturbation_generator import DeepBillboard, DeepManeuver
+from deepbillboard import DeepBillboard
+from deepmaneuver import DeepManeuver
 from beamngpy import BeamNGpy, Scenario, Vehicle, StaticObject, ScenarioObject
 import statistics, math
 from scipy.spatial.transform import Rotation as R
@@ -453,6 +454,31 @@ def plot_deviation(trajectories, unperturbed_traj, qr_positions, model, centerli
     plt.close("all")
     del x, y
 
+
+def plot_trajectory(traj, centerline, roadleft, roadright, new_results_dir, default_scenario, default_spawnpoint, qr_positions, title="Trajectory", label1="AI behavior"):
+    sp = spawn_point(default_scenario, default_spawnpoint)
+    x = [t[0] for t in traj]
+    y = [t[1] for t in traj]
+    plt.plot(x,y, 'b', label=label1)
+    # plt.gca().set_aspect('equal')
+    # plt.axis('square')
+    plt.xlabel('x - axis')
+    plt.ylabel('y - axis')
+    plt.plot([t[0] for t in centerline], [t[1] for t in centerline], 'k-', label="centerline")
+    plt.plot([t[0] for t in roadleft], [t[1] for t in roadleft], 'r-', label="left")
+    plt.plot([t[0] for t in roadright], [t[1] for t in roadright], 'g-', label="right")
+    plt.scatter(sp['pos'][0], sp['pos'][1], marker="o", linewidths=10, label="spawnpoint")
+    plt.plot([p[0][0] for p in qr_positions], [p[0][1] for p in qr_positions], linewidth=5, label="billboard")
+    plt.title(title)
+    plt.legend()
+    plt.draw()
+    if new_results_dir == '':
+        plt.savefig("{}/{}-{}_expected-trajectory.jpg".format(os.getcwd(), default_scenario, default_spawnpoint))
+    else:
+        plt.savefig("{}/{}-{}_expected-trajectory.jpg".format(new_results_dir, default_scenario, default_spawnpoint))
+    # plt.show()
+    # plt.pause(1)
+    plt.close("all")
 
 def plot_steering(unperturbed_all_ys, pertrun_all_ys, testruns_all_ys, title="", resultsdir="results"):
     for i, ys in enumerate(testruns_all_ys):

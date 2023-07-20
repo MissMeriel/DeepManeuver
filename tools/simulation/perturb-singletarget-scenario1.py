@@ -1,10 +1,3 @@
-import argparse
-parser = argparse.ArgumentParser(description='Process paths')
-parser.add_argument('path2src', metavar='N', type=str, help='path to source parent dirs')
-parser.add_argument('road_id', metavar='N', type=str, help='road identifier in BeamNG')
-args = parser.parse_args()
-print(args)
-
 import numpy as np
 from matplotlib import pyplot as plt
 import logging, random, string, time, copy, os, sys, shutil
@@ -14,17 +7,20 @@ import cv2
 from PIL import Image
 from sklearn.metrics import mean_squared_error
 from torchvision.utils import save_image
-# import statistics, math
-# from scipy.spatial.transform import Rotation as R
-# import pickle
-# from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
+import argparse
 
-sys.path.append(f'{args.path2src}/GitHub/DAVE2-Keras')
-sys.path.append(f'{args.path2src}/GitHub/superdeepbillboard')
-sys.path.append(f'{args.path2src}/GitHub/BeamNGpy')
+parser = argparse.ArgumentParser(description='Process paths')
+parser.add_argument('path2src', metavar='N', type=str, help='path to source parent dirs')
+parser.add_argument('road_id', metavar='N', type=str, help='road identifier in BeamNG')
+args = parser.parse_args()
+print(args)
+
 sys.path.append(f'{args.path2src}/GitHub/BeamNGpy/src/')
+sys.path.append(f'{os.getcwd()}/../')
+sys.path.append(f'{os.getcwd()}/../models')
 
-from perturbation_generator import DeepBillboard, DeepManeuver
+from deepbillboard import DeepBillboard
+from deepmaneuver import DeepManeuver
 from beamngpy import BeamNGpy, Scenario, Vehicle, setup_logging
 from sim_utils import *
 
@@ -118,42 +114,17 @@ def road_analysis(bng):
     return actual_middle, adjusted_middle, roadleft, roadright
 
 
-def plot_trajectory(traj, title="Trajectory", label1="AI behavior"):
-    global centerline, roadleft, roadright, new_results_dir, default_scenario, default_spawnpoint, qr_positions
-    sp = spawn_point(default_scenario, default_spawnpoint)
-    x = [t[0] for t in traj]
-    y = [t[1] for t in traj]
-    plt.plot(x,y, 'b', label=label1)
-    # plt.gca().set_aspect('equal')
-    # plt.axis('square')
-    plt.xlabel('x - axis')
-    plt.ylabel('y - axis')
-    plt.plot([t[0] for t in centerline], [t[1] for t in centerline], 'k-', label="centerline")
-    plt.plot([t[0] for t in roadleft], [t[1] for t in roadleft], 'r-', label="left")
-    plt.plot([t[0] for t in roadright], [t[1] for t in roadright], 'g-', label="right")
-    plt.scatter(sp['pos'][0], sp['pos'][1], marker="o", linewidths=10, label="spawnpoint")
-    plt.plot([p[0][0] for p in qr_positions], [p[0][1] for p in qr_positions], linewidth=5, label="billboard")
-    plt.title(title)
-    plt.legend()
-    plt.draw()
-    if new_results_dir == '':
-        plt.savefig("{}/{}-{}_expected-trajectory.jpg".format(os.getcwd(), default_scenario, default_spawnpoint))
-    else:
-        plt.savefig("{}/{}-{}_expected-trajectory.jpg".format(new_results_dir, default_scenario, default_spawnpoint))
-    # plt.show()
-    # plt.pause(1)
-    plt.close("all")
 
 
 def create_ai_line_from_road_with_interpolation(spawn, bng):
     global centerline, remaining_centerline, centerline_interpolated, roadleft, roadright
-    points = []; point_colors = []; spheres = []; sphere_colors = []; traj = []
+    traj = []
+    points, point_colors, spheres, sphere_colors = [], [], [], []
     actual_middle, adjusted_middle, roadleft, roadright = road_analysis(bng)
     print("finished road analysis")
     start_index = get_start_index(adjusted_middle, default_scenario, default_spawnpoint)
     middle_end = adjusted_middle[:start_index]
     middle = adjusted_middle[start_index:]
-    # temp = [list(spawn['pos'])]; temp.extend(middle); middle = temp
     middle.extend(middle_end)
     middle.append(middle[0])
     for i,p in enumerate(middle[:-1]):
@@ -166,7 +137,7 @@ def create_ai_line_from_road_with_interpolation(spawn, bng):
             traj.extend([[x,y,p[2]] for x,y in zip(xs,ys)])
         else:
             traj.append(copy.deepcopy(p))
-    print("set up debug line")
+    print("setting up debug line")
     # set up debug line
     for i,p in enumerate(adjusted_middle[:-1]):
         points.append([p[0], p[1], p[2]])
@@ -176,7 +147,7 @@ def create_ai_line_from_road_with_interpolation(spawn, bng):
     bng.add_debug_line(points, point_colors,
                        spheres=spheres, sphere_colors=sphere_colors,
                        cling=True, offset=0.1)
-    points = []; point_colors=[]; spheres = []; sphere_colors=[]
+    points, point_colors, spheres, sphere_colors = [],[],[],[]
     for i,p in enumerate(roadleft[:-1]):
         points.append([p[0], p[1], p[2]])
         point_colors.append([0, 1, 0, 0.1])
@@ -185,7 +156,7 @@ def create_ai_line_from_road_with_interpolation(spawn, bng):
     bng.add_debug_line(points, point_colors,
                        spheres=spheres, sphere_colors=sphere_colors,
                        cling=True, offset=0.1)
-    points = []; point_colors=[]; spheres = []; sphere_colors=[]
+    points, point_colors, spheres, sphere_colors = [],[],[],[]
     for i,p in enumerate(roadright[:-1]):
         points.append([p[0], p[1], p[2]])
         point_colors.append([0, 1, 0, 0.1])
@@ -194,23 +165,19 @@ def create_ai_line_from_road_with_interpolation(spawn, bng):
     bng.add_debug_line(points, point_colors,
                        spheres=spheres, sphere_colors=sphere_colors,
                        cling=True, offset=0.1)
-    print("spawn point:{}".format(spawn))
-    print("beginning of script:{}".format(middle[0]))
-    plot_trajectory(traj, "Points on Script (Final)", "AI debug line")
     centerline = copy.deepcopy(traj)
     remaining_centerline = copy.deepcopy(traj)
     centerline_interpolated = copy.deepcopy(traj)
     return bng
 
 
-def setup_beamng(vehicle_model='hopper',
-                 model_name="test-7-trad-50epochs-64batch-1e4lr-ORIGDATASET-singleoutput-model-epoch-43.pt"):
+def setup_beamng(vehicle_model='hopper', model_name="test-7-trad-50epochs-64batch-1e4lr-ORIGDATASET-singleoutput-model-epoch-43.pt"):
     global default_scenario, default_spawnpoint
     global new_results_dir, default_color, steps_per_sec, qr_positions
     global integral, prev_error, setpoint, default_spawnpoint, default_scenario
     integral = 0.0
     prev_error = 0.0
-    model = torch.load(f"{args.path2src}/GitHub/superdeepbillboard/models/{model_name}", map_location=torch.device('cuda')).eval()
+    model = torch.load(f"{os.getcwd()}/../models/{model_name}", map_location=torch.device('cuda')).eval()
     setup_logging()
 
     beamng = BeamNGpy('localhost', 64256, home=f'{args.path2src}/BeamNG.research.v1.7.0.1', user=f'{args.path2src}/BeamNG.research')
@@ -222,22 +189,15 @@ def setup_beamng(vehicle_model='hopper',
     add_barriers(scenario)
     qr_positions = add_qr_cubes(scenario, default_scenario, default_spawnpoint)
 
-    # Compile the scenario and place it in BeamNG's map folder
-    scenario.make(beamng)
-
-    # Start BeamNG and enter the main loop
-    bng = beamng.open(launch=True)
-    # bng.hide_hud()
+    scenario.make(beamng) # Compile the scenario and place it in BeamNG's map folder
+    bng = beamng.open(launch=True) # Start BeamNG and enter the main loop
     bng.set_steps_per_second(steps_per_sec)  # With 36hz temporal resolution
     bng.set_deterministic()  # Set simulator to be deterministic
-
     # bng.set_particles_enabled
     bng.load_scenario(scenario)
     bng.start_scenario()
-    # Put simulator in pause awaiting further inputs
-    bng.pause()
+    bng.pause() # Put simulator in pause awaiting further inputs
     assert vehicle.skt
-    # find_width_of_road(bng)
     return vehicle, bng, model, spawn
 
 
@@ -471,7 +431,6 @@ def run_scenario_to_collect_sequence(vehicle, bng, model, spawn, cuton=40, devic
     detected_runtimes, runtimes = [], []
     distances, detected_distances = [], []
     unperturbed_seq = []
-    last_steering_from_sim = 0.0
 
     while damage <= 0:
         vehicle.update_vehicle()
@@ -540,7 +499,6 @@ def run_scenario_to_collect_sequence(vehicle, bng, model, spawn, cuton=40, devic
             break
 
         bng.step(1, wait=True)
-        last_steering_from_sim = sensors['electrics']['steering_input']
     unperturbed_steer = steering_inputs
     cv2.destroyAllWindows()
     plot_billboard_ratios(runtimes, percents, detected_runtimes, detected_percents, distances, detected_distances,
@@ -616,7 +574,6 @@ def run_scenario_with_perturbed_billboard(vehicle, bng, model, spawn, pert_billb
             model = model.to(torch.device("cuda"))
             origimg = model.process_image(origimage).to(torch.device("cuda"))
             unpert_prediction = float(model(origimg).cpu()[0][0])
-            origimg = origimg.to(torch.device("cpu"))
             if bbox_img is not None and kph > 29:
                 deviceimg_pert = model.process_image(image_pert).to(torch.device("cuda"))
                 prediction_pert = float(model(deviceimg_pert).cpu()[0][0])
@@ -634,8 +591,6 @@ def run_scenario_with_perturbed_billboard(vehicle, bng, model, spawn, pert_billb
         vehicle.control(throttle=throttle, steering=steering, brake=0.0)
 
         if bbox_img is not None and kph > 29:
-            # origimg = model.process_image(origimage).to(device)
-            # unpert_prediction = float(model(origimg).cpu()[0][0])
             unperturbed_predictions.append(unpert_prediction)
             perturbed_predictions.append(prediction_pert)
             angleerror_runtimes.append(runtime)
@@ -738,7 +693,7 @@ def run_scenario_for_deepmaneuver(vehicle, bng, model, spawn, direction, dist_to
             detected_runtimes.append(runtime)
             detected_distances.append(dist_to_bb)
             detected_percents.append(percent_of_img)
-            almost_left_track = has_car_almost_left_track(vehicle.state['front'], centerline_interpolated)
+
             rs = calc_points_of_reachable_set(vehicle.state)
             road_seg = nearest_seg(roadmiddle, vehicle.state['front'], roadleft, roadright)
             x = intersection_of_RS_and_road(rs, road_seg)
@@ -751,11 +706,6 @@ def run_scenario_for_deepmaneuver(vehicle, bng, model, spawn, direction, dist_to
                 print("Damage={} at timestep={}, exiting...".format(damage, round(runtime, 2)))
                 outcome = "D={}".format(round(damage, 2))
                 break
-
-            # if kph > 29 and has_car_almost_left_track(vehicle.state['front'], centerline_interpolated) and dist_to_bb < dist_to_bb_cuton:
-            #     print("Almost left track, exiting...")
-            #     outcome = "LT"
-            #     break
 
             if (kph > 29 and abs(x - dist_to_bb_cutoff) <= 0.02) or (kph > 29 and x <= dist_to_bb_cutoff):
                 print(f"RS overlap={x}, exiting...")
@@ -865,7 +815,7 @@ def main():
         os.mkdir("results/{}".format(newdir))
         print(f"Copying script to {os.getcwd()}/{__file__}")
         shutil.copy(f"{__file__}", f"results/{newdir}")
-        shutil.copy(f"{os.getcwd()}/../perturbation_generator/DeepManeuver.py", f"results/{newdir}")
+        shutil.copy(f"{os.getcwd()}/../deepmaneuver/DeepManeuver.py", f"results/{newdir}")
     expected_trajectory = intake_lap_file(f"posefiles/DAVE2v3-lap-trajectory.txt")
     bng = create_ai_line_from_road_with_interpolation(spawn, bng)
 
