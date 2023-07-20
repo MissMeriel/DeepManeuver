@@ -1,28 +1,26 @@
 # Study replication
+This subdirectory contains the scripts to reproduce the results tables in the paper study section and the appendix.
 
-This directory contains the scripts needed to download the data to the `./data` directory.
-It also contains the scripts to reproduce the results tables in the paper study section and the appendix.
+## Setup
+First download the study data to the `./data` directory:
 
-## Study 
+```bash
+curl -L "<permalink-to-study-data>"
+```
 
-### Table I
+## Table and Figure generation
 
-### Table II
+To generate results tables in the paper, run:
 
-### Table III
+```bash
+pip install -r study-replication-requirements.txt
+python process-results.py <result-id>
+```
 
-### Table V
+To see a list of available <result-id> arguments, `run python process-results.py -h`
 
-### Figure VI
-
-## Appendix
-
-### Table IV
-
-### Table V
-
-### Table VI
-
-### Figure VII
-
-### Figure VIII
+To generate paper figures:
+```bash
+pip install -r study-replication-requirements.txt
+python process-results-for-figures.py figureX
+```
