@@ -1,5 +1,5 @@
 # Study replication
-This subdirectory contains the scripts to reproduce the results tables in the paper study section and the appendix.
+This subdirectory contains the scripts to reproduce the results tables and figures in the paper study section and the appendix.
 
 ## Setup
 First download the study data to the `./data` directory:
