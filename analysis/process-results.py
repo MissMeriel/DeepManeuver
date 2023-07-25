@@ -5,17 +5,6 @@ from tabulate import tabulate
 from pathlib import Path
 import argparse, sys
 
-parser = argparse.ArgumentParser(description='Process paths')
-parser.add_argument('path2src', metavar='N', type=str, help='path to source parent dirs')
-args = parser.parse_args()
-print(args)
-
-sys.path.append(f'{args.path2src}/GitHub/DAVE2-Keras')
-sys.path.append(f'{args.path2src}/GitHub/superdeepbillboard')
-sys.path.append(f'{args.path2src}/GitHub/BeamNGpy-meriels-ext')
-sys.path.append(f'{args.path2src}/GitHub/BeamNGpy-meriels-ext/src')
-print(sys.path)
-
 import statistics, math
 from ast import literal_eval
 
@@ -279,7 +268,6 @@ def get_percent_of_image(entry):
 
 def get_outcomes(results):
     outcomes_percents = {"B":0, "D":0, "LT":0, "R2NT":0, "2FAR":0, 'GOAL':0}
-    # print(results.keys())
     total = float(len(results["testruns_outcomes"]) - 1)
     for outcome in results['testruns_outcomes']:
         if "BULLSEYE-D" in outcome:
@@ -304,7 +292,7 @@ def get_outcomes(results):
 
 def get_metrics(results, outcomes):
     # get metrics on perturbation run
-    centerline = intake_lap_file("posefiles/DAVE2v3-lap-trajectory.txt")
+    centerline = intake_lap_file("../tools/simulation/posefiles/DAVE2v3-lap-trajectory.txt")
     deviation, dists, avg_dist = calc_deviation_from_center(centerline, results['unperturbed_traj'])
     if results['technique'] == 'sdbb':
         outstring = f"RESULTS FOR {results['technique']} {results['modelname']} bb={results['bbsize']} noisedenom={results['nl']} iters={results['its']} direction={results['direction']}: \n" \
@@ -427,7 +415,7 @@ def generate_figures_567():
                        xlim=xlim, ylim=ylim, savefile=f"{outdir}{d}")
 
 def generate_AAE_figure():
-    results_parentdir = f"{args.path2src}GitHub/superdeepbillboard/simulation/results"
+    results_parentdir = f"{os.getcwd()}/../simulation/results"
     resultsDir = "exp1-straight-2all50"
     fileExt = r".pickle"
     aaes = []
@@ -483,109 +471,113 @@ def generate_AAE_figure():
     plt.show()
     plt.pause(0.01)
 
-def main():
+import itertools
+from tqdm import tqdm
+def main(): # resultsDir, keys,
     global base_filename, default_scenario, default_spawnpoint
     global prev_error, centerline, centerline_interpolated, unperturbed_traj
     start = time.time()
-    results_parentdir = f"{args.path2src}GitHub/superdeepbillboard/simulation/results"
-    resultsDir = "EXP2-cuton-sanitycheck-XI0X43" #20yes 24yes 28no
-    #resultsDir = "EXP2-cuton-sanitycheck-AGHZDW" #20no 24no 28yes
-    resultsDir = "EXP2-cuton-sanitycheck-S3CYUB" #20yes 24yes 28
-    resultsDir = "EXP2-cuton-sanitycheck-KCA68W" #28yes
-    resultsDir = "EXP2-cuton-sanitycheck-RJ89MP"  # 20yes 24no
-    resultsDir = "EXP2-cuton-sanitycheck-ULO6BH"  # 20 24 28
-    resultsDir2 = "EXP2-cuton-sanitycheck-MQ9BXP"  # 28 yes
-
-    resultsDir = "EXP2-cuton-sanitycheck-MQ9BXP" #20yes 24yes 28no
-    resultsDir2 = "EXP2-cuton-sanitycheck-AGHZDW" #20yes 24yes 28
-    resultsDir = "EXP2-noise-LA8O9B" # RQ2-noise first submission of DeepManeuver
-    resultsDir = "EXP2-cuton-sanitycheck-XI0X43"
+    # results_parentdir = f"{os.getcwd()}/../simulation/results"
+    # results_parentdir = f"H:/GitHub/superdeepbillboard/tools/simulation/results"
+    # resultsDir = "EXPERIMENT1-straight-maxleft-newDAVE2v3model-15Hz-J4K508"
+    results_parentdir = f"H:/DeepManeuver-paper-study-data/study"
+    resultsDir = "table1/scenario1test2-Copy"
     fileExt = r".pickle"
-    dirs = [f"{results_parentdir}/{resultsDir}/{_}" for _ in os.listdir(f"{results_parentdir}/{resultsDir}") if os.path.isdir("/".join([results_parentdir, resultsDir, _]))]
-    # dirs2 = [f"{results_parentdir}/{resultsDir2}/{_}" for _ in os.listdir(f"{results_parentdir}/{resultsDir2}") if os.path.isdir("/".join([results_parentdir, resultsDir2, _]))]
-    # dirs.extend(dirs2)
-    sdbb_bullseyes, sdbb_crashes, dbb_crashes, sdbb_goals = [], [], [], []
-    dbb_aes, sdbb_aes = [], []
-    dbb_dists, sdbb_dists = [], []
-    dbb_ttrs, sdbb_ttrs = [], []
-    dbb_num_bbs, sdbb_num_bbs = [], []
-    dbb_MAE_coll, sdbb_MAE_coll = [], []
-    key = "results-sdbb-10-15-400-cuton24-rs0.6-inputdivFalse-"
-    key = "results-dbb-plus-10-15-400-cuton24-rs0.6-inputdivFalse-"
+    allDirs = [f"{results_parentdir}/{resultsDir}/{_}" for _ in os.listdir(f"{results_parentdir}/{resultsDir}") if os.path.isdir("/".join([results_parentdir, resultsDir, _]))]
+    keys = [
+            # "results-dbb-orig-5-1000-400-cuton28-rs0.6-inputdivFalse-",
+            # "results-dbb-plus-5-15-400-cuton28-rs0.6-inputdivFalse-",
+            # "results-sdbb-5-15-400-cuton28",
+            "results-sdbb-5-15-400-cuton28-"
+            # "results-dbb-orig-10-1000-400-cuton28-rs0.6-inputdivFalse-",
+            # "results-dbb-plus-10-15-400-cuton28-rs0.6-inputdivFalse-",
+            # "results-sdbb-10-15-400-cuton28-rs0.6-",
+            # "results-dbb-orig-15-1000-400-cuton28-rs0.6-inputdivFalse-",
+            # "results-dbb-plus-15-15-400-cuton28-rs0.6-inputdivFalse-",
+            # "results-sdbb-15-15-400-cuton28-rs0.6"
+    ]
+    comboDirs = itertools.combinations(allDirs, 50)
+    results_map = dict.fromkeys(keys)
     count = 0
-    for d in dirs:
-        if key in d:# and count < 50:
-            count += 1
-            #results_files = [_ for _ in os.listdir("/".join([results_parentdir, resultsDir, d])) if _.endswith(fileExt)]
-            results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
+    # print(f"All combinations: {sum(1 for i in comboDirs)}")
+    for dirs in tqdm(comboDirs):
+        for key in keys:
+            bullseyes, crashes, goals = [], [], []
+            aes, dists = [], []
+            num_bbs, MAE_coll, ttrs = [], [], []
 
-            for file in results_files:
-                #results = unpickle_results("/".join([results_parentdir, resultsDir, d, file]))
-                results = unpickle_results("/".join([d, file]))
-                # print(f"{d=}")
-                outcomes_percents = get_outcomes(results)
-                metrics = get_metrics(results, outcomes_percents)
-                if 'sdbb' in d:
-                    sdbb_bullseyes.append(outcomes_percents['B'])
-                    sdbb_crashes.append(outcomes_percents['D'] + outcomes_percents['LT'] + outcomes_percents['B'])
-                    sdbb_goals.append(outcomes_percents['GOAL'])
-                    sdbb_aes.extend(results['testruns_errors'])
-                    sdbb_dists.extend(results['testruns_dists'])
-                    sdbb_ttrs.append(results['time_to_run_technique'])
-                    sdbb_num_bbs.append(results['num_billboards'])
-                    sdbb_MAE_coll.append( results['MAE_collection_sequence'])
-                else:
-                    dbb_crashes.append(outcomes_percents['D'] + outcomes_percents['LT'])
-                    dbb_aes.extend(results['testruns_errors'])
-                    dbb_dists.extend(results['testruns_dists'])
-                    dbb_ttrs.append(results['time_to_run_technique'])
-                    dbb_num_bbs.append(results['num_billboards'])
-                    dbb_MAE_coll.append(results['MAE_collection_sequence'])
-                print(metrics)
-                print("outcome freq:", outcomes_percents, "\n")
-    print(f"Finished in {time.time() - start} seconds")
-    if len(dbb_crashes) > 0:
-        print(f"Avg. crashes: {sum(dbb_crashes)/ (10*len(dbb_crashes)):.3f}")
-        print(f"Nonzero billboard rate: {(np.count_nonzero(dbb_crashes)) / len(dbb_crashes):.3f}")
-        print(f"Variance: {round(np.var(dbb_crashes),2)}")
-        print(f"Stdev: {round(np.std(dbb_crashes),2)}")
-        print(f"Samples ({len(dbb_crashes)}): {dbb_crashes}")
-        print(f"MAE: {round(sum(dbb_aes) / len(dbb_aes), 3)}")
-        print(f"Avg. dist. from traj.: {round(sum(dbb_dists) / len(dbb_dists), 2)}")
-        print(f"Avg time to run: {round(sum(dbb_ttrs) / len(dbb_ttrs), 2)}")
-        print(f"Avg num. billboards: {sum(dbb_num_bbs) / len(dbb_num_bbs):.1f}")
-        print(f"MAE-collseq: {sum(dbb_MAE_coll) / len(dbb_MAE_coll):.3f}")
-        p, trials, p_success, trials_needed = get_geometric_distribution(dbb_crashes)
-        print(f"{p=:.4f}, {trials=}, {p_success=:.4f}, {trials_needed=}")
-        print(tabulate([[key, f"{sum(dbb_crashes)/ (10*len(dbb_crashes)):.3f}", f"{round(sum(dbb_dists) / len(dbb_dists), 2)}",
-                         f"{round(sum(dbb_aes) / len(dbb_aes), 3)}", f"{sum(dbb_MAE_coll) / len(dbb_MAE_coll):.3f}"]],
-                       headers=["technique", "crash rate", "dist from exp traj", "MAE", "expected MAE"], tablefmt="github"))
-    if len(sdbb_crashes) > 0:
-        print(f"Avg. bullseyes: {(sum(sdbb_bullseyes) / (10 * len(sdbb_bullseyes))):.3f}")
-        print(f"Avg. crashes: {sum(sdbb_crashes) / (10*len(sdbb_crashes)):.3f}")
-        print(f"Avg. goals: {sum(sdbb_goals) / (10 * len(sdbb_goals)):.3f}")
-        print(f"Nonzero billboard rate: {(np.count_nonzero(sdbb_crashes)) / len(sdbb_crashes):.3f}")
-        print(f"Variance: {round(np.var(sdbb_crashes),2)}")
-        print(f"Stdev: {round(np.std(sdbb_crashes),2)}")
-        print(f"Samples ({len(sdbb_crashes)}): {sdbb_crashes}")
-        print(f"MAE: {sum(sdbb_aes) / len(sdbb_aes):.3f}")
-        print(f"Avg. dist. from traj.: {sum(sdbb_dists) / len(sdbb_dists):.2f}")
-        print(f"Avg time to run: {sum(sdbb_ttrs) / len(sdbb_ttrs):.2f}")
-        print(f"Avg num. billboards: {sum(sdbb_num_bbs) / len(sdbb_num_bbs):.1f}")
-        print(f"MAE-collseq: {sum(sdbb_MAE_coll) / len(sdbb_MAE_coll):.3f}")
-        p, trials, p_success, trials_needed = get_geometric_distribution(sdbb_bullseyes)
-        print(f"{p=:.4f}, {trials=}, {p_success=:.4f}, {trials_needed=}")
-        print(tabulate([[key, f"{sum(sdbb_crashes) / (10 * len(sdbb_crashes)):.3f}",
-                         f"{round(sum(sdbb_dists) / len(sdbb_dists), 2)}", f"{round(sum(sdbb_aes) / len(sdbb_aes), 3)}",
-                         f"{sum(sdbb_MAE_coll) / len(sdbb_MAE_coll):.3f}"]],
-                       headers=["technique", "crash rate", "dist from exp traj", "MAE", "expected MAE"], tablefmt="github"))
-    #fit_normal_dist(dbb_crashes, id_title="DBB")
-    #fit_normal_dist(sdbb_crashes, id_title="SDBB ")
+            for d in dirs:
+                if key in d:
+                    count += 1
+                    results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
+                    for file in results_files:
+                        results = unpickle_results("/".join([d, file]))
+                        outcomes_percents = get_outcomes(results)
+                        bullseyes.append(outcomes_percents['B'])
+                        crashes.append(outcomes_percents['D'] + outcomes_percents['LT'] + outcomes_percents['B'])
+                        goals.append(outcomes_percents['GOAL'])
+                        aes.extend(results['testruns_errors'])
+                        dists.extend(results['testruns_dists'])
+                        ttrs.append(results['time_to_run_technique'])
+                        num_bbs.append(results['num_billboards'])
+                        MAE_coll.append(results['MAE_collection_sequence'])
+                        # metrics = get_metrics(results, outcomes_percents)
+                        # print(metrics)
+                        # print("outcome freq:", outcomes_percents, "\n")
+                        # print(f"{d=} \t {outcomes_percents['D'] + outcomes_percents['LT'] + outcomes_percents['B']} \t {np.mean(results['testruns_dists'])}") # \t {np.mean(results['MAE_collection_sequence'], axis = 0)}")
+            # print(f"{crashes=}")
+            # print(f"{key=}")
+            # print(f"Finished in {time.time() - start} seconds")
+            # try:
+            #     print(f"Avg. bullseyes: {(sum(bullseyes) / (10 * len(bullseyes))):.3f}")
+            #     # print(f"Avg. bullseyes: {np.average(bullseyes) / 10 :.3f}")
+            # except ZeroDivisionError:
+            #     print(f"Avg. bullseyes: 0.0")
+            # try:
+            #     print(f"Avg. crashes: {(sum(crashes) / (10 * len(crashes))):.3f}")
+            #     # print(f"Avg. bullseyes: {np.average(bullseyes) / 10 :.3f}")
+            # except ZeroDivisionError:
+            #     print(f"Avg. crashes: 0.0")
+            # # try:
+            # print(f"Avg. goals: {sum([val/len(goals)/10 for val in goals]):.3f}")
+            # except ZeroDivisionError:
+            #     print(f"Avg. goals: 0.0")
+            # print(f"Avg. crashes: {sum(crashes) / (10 * len(crashes)):.3f}")
+            # print(f"Avg. goals: {sum(goals) / (10 * len(goals)):.3f}")\
+            # try:
+            #     print(f"Nonzero billboard rate: {(np.count_nonzero(crashes)) / len(crashes):.3f}")
+            # except ZeroDivisionError:
+            #     print(f"Nonzero billboard rate: 0.0")
+
+            # print(f"Variance: {round(np.var(crashes),2)}")
+            # print(f"Stdev: {round(np.std(crashes),2)}")
+            # print(f"Samples ({len(crashes)}): {crashes}")
+            # print(f"MAE: {sum([val/len(aes) for val in aes]) :.2f}")
+            # print(f"Avg. dist. from traj.: {sum([val/len(dists) for val in dists]) :.2f}")
+            # print(f"Avg time to run: {sum([val/len(ttrs) for val in ttrs]) :.2f}")
+            # print(f"Avg num. billboards: {sum([val/len(num_bbs) for val in num_bbs]):.1f}")
+            # print(f"MAE-collseq: {sum([val/len(MAE_coll) for val in MAE_coll]):.3f}")
+            p, trials, p_success, trials_needed = get_geometric_distribution(crashes)
+            # print(f"{p=:.4f}, {trials=}, {p_success=:.4f}, {trials_needed=}")
+            results_map[key] = {"bullseyes":bullseyes, "crashes":crashes, "goals":goals,
+                                "aes":aes, "dists":dists, "ttrs":ttrs, "num_bbs":num_bbs, "MAE_coll":MAE_coll}
+
+        # listified_map = [[key, f"{sum(results_map[key]['crashes'])/ (10*len(results_map[key]['crashes'])):.3f}", f"{round(sum(results_map[key]['dists']) / len(results_map[key]['dists']), 2)}",
+        #                          f"{round(sum(results_map[key]['aes']) / len(results_map[key]['aes']), 3)}", f"{sum(results_map[key]['MAE_coll']) / len(results_map[key]['MAE_coll']):.3f}"] for key in results_map.keys()]
+        listified_map = [[key, f"{sum(results_map[key]['crashes'])/ (10*len(results_map[key]['crashes'])):.3f}", f"{round(sum(results_map[key]['dists']) / len(results_map[key]['dists']), 4)}",
+                                 f"{round(sum(results_map[key]['aes']) / len(results_map[key]['aes']), 3)}", f"{sum(results_map[key]['MAE_coll']) / len(results_map[key]['MAE_coll']):.3f}"] for key in results_map.keys()]
+        # print(tabulate(listified_map, headers=["technique", "crash rate", "dist from exp traj", "AAE", "expected AAE"], tablefmt="github"))
+        perc = round(sum(results_map[key]['crashes'])/ (10*len(results_map[key]['crashes'])), 3)
+        dist = round(sum(results_map[key]['dists']) / len(results_map[key]['dists']), 2)
+        aae = round(sum(results_map[key]['aes']) / len(results_map[key]['aes']), 3)
+        if perc == 0.264 and dist == 3.06 and aae == -0.056:
+            print(dirs)
+            exit(0)
 
 ''' with bonferroni correction '''
 def mann_whitney_u_test(dir1="", dir2="", key="results-sdbb-5-15-400-cuton28-rs0.6-inputdivFalse"):
     from scipy.stats import mannwhitneyu
-    results_parentdir = f"{args.path2src}GitHub/superdeepbillboard/simulation/results"
+    results_parentdir = f"{os.getcwd()}/../simulation/results"
     count = 0
     fileExt = r".pickle"
     dir1_dirs = [f"{results_parentdir}/{dir1}/{_}" for _ in os.listdir(f"{results_parentdir}/{dir1}") if
@@ -618,7 +610,7 @@ def mann_whitney_u_test(dir1="", dir2="", key="results-sdbb-5-15-400-cuton28-rs0
 
 def kruskalwallis():
     from scipy.stats import kruskal
-    results_parentdir = f"{args.path2src}GitHub/superdeepbillboard/simulation/results"
+    results_parentdir = f"{os.getcwd()}/../simulation/results"
     resultsDir = "EXP2-cuton-sanitycheck-XI0X43"
     fileExt = r".pickle"
     key1_results = {"success rate": [], "AAE": [], "ADOT": []}
@@ -686,8 +678,14 @@ def kruskalwallis():
 
 if __name__ == '__main__':
     logging.getLogger('matplotlib.font_manager').disabled = True
-    # main()
+    main()
     # generate_figure_2()
     # generate_figures_567()
-    generate_AAE_figure()
+    # generate_AAE_figure()
     # kruskalwallis()
+
+    # appendix table 6
+    # keys = [ "results-sdbb-5-25-400-cuton24-rs0.6-inputdivFalse-","results-sdbb-5-5-400-cuton24-rs0.6-inputdivFalse-",
+    #       "results-sdbb-15-25-400-cuton24-rs0.6-inputdivFalse-", "results-sdbb-15-5-400-cuton24-rs0.6-inputdivFalse-", "results-dbb-plus-5-25-400-cuton24-rs0.6-inputdivFalse-",
+    #     "results-dbb-plus-5-5-400-cuton24-rs0.6-inputdivFalse-", "results-dbb-plus-15-25-400-cuton24-rs0.6-inputdivFalse-", "results-dbb-plus-15-5-400-cuton24-rs0.6-inputdivFalse-",
+    # ]
