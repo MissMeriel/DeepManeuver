@@ -481,17 +481,17 @@ def generate_AAE_figure():
 
 import itertools
 from tqdm import tqdm
-def main(resultsDir, keys):
+def main(): # resultsDir, keys,
     global base_filename, default_scenario, default_spawnpoint
     global prev_error, centerline, centerline_interpolated, unperturbed_traj
     start = time.time()
     # results_parentdir = f"{os.getcwd()}/../simulation/results"
     # results_parentdir = f"H:/GitHub/superdeepbillboard/tools/simulation/results"
     # resultsDir = "EXPERIMENT1-straight-maxleft-newDAVE2v3model-15Hz-J4K508"
-    # results_parentdir = f"H:/DeepManeuver-paper-study-data/study"
-    # resultsDir = "table1/scenario1test2-Copy"
+    results_parentdir = f"H:/DeepManeuver-paper-study-data/study"
+    resultsDir = "table1/scenario1test2-Copy"
     fileExt = r".pickle"
-    allDirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir("/".join([resultsDir, _]))]
+    allDirs = [f"{results_parentdir}/{resultsDir}/{_}" for _ in os.listdir(f"{results_parentdir}/{resultsDir}") if os.path.isdir("/".join([results_parentdir, resultsDir, _]))]
     keys = [
             # "results-dbb-orig-5-1000-400-cuton28-rs0.6-inputdivFalse-",
             # "results-dbb-plus-5-15-400-cuton28-rs0.6-inputdivFalse-",
@@ -689,46 +689,32 @@ if __name__ == '__main__':
     args = parse_arguments()
     # table1 table2 table3 table5 table6 figure5 figure6 figure7 figure8
     if args.figure == "table1": # study table 1
-        pass
+        resultsDir = args.dataset + "/study/" + args.figure
+        table1(resultsDir)
     elif args.figure == "table2": # study table 2
-        pass
+        resultsDir = args.dataset + "/study/" + args.figure
+        tablegen(resultsDir)
     elif args.figure == "table3": # study table 3
-        pass
+        resultsDir = args.dataset + "/study/" + args.figure
+        tablegen(resultsDir)
     elif args.figure == "table5": # appendix table 5
-        keys = [
-            "results-dbb-plus-5-15-400-cuton20-", "results-dbb-plus-5-15-400-cuton24-",
-            "results-dbb-plus-15-15-400-cuton20-", "results-dbb-plus-15-15-400-cuton24-",
-            "results-sdbb-5-15-400-cuton20-", "results-sdbb-5-15-400-cuton24-",
-            "results-sdbb-15-15-400-cuton20-", "results-sdbb-15-15-400-cuton24-",
-        ]
         resultsDir = args.dataset + "/appendix/" + args.figure
-        main(resultsDir, keys)
-        pass
+        tablegen(resultsDir)
     elif args.figure == "table6": # appendix table 6
-        keys = [
-                 "results-dbb-plus-5-25-400-cuton24-", "results-dbb-plus-5-5-400-cuton24-",
-                 "results-dbb-plus-15-25-400-cuton24-", "results-dbb-plus-15-5-400-cuton24-",
-                 "results-sdbb-5-25-400-cuton24-", "results-sdbb-5-5-400-cuton24-",
-                 "results-sdbb-15-25-400-cuton24-", "results-sdbb-15-5-400-cuton24-",
-        ]
         resultsDir = args.dataset + "/appendix/" + args.figure
-        main(resultsDir, keys)
+        tablegen(resultsDir)
     elif args.figure == "figure5": # study figure 5
-        # generate_figures_567()
-        pass
+        generate_figures_567()
     elif args.figure == "figure6": # study figure 6
-        # generate_figures_567()
-        pass
+        generate_figures_567()
     elif args.figure == "figure7": # appendix figure 7
-        # generate_AAE_figure()
-        pass
+        generate_figures_567()
     elif args.figure == "figure8": # appendix figure 8
-        pass
+        resultsDir = args.dataset + "/appendix/" + args.figure
+        generate_figure8(resultsDir)
     else:
         print(f"{args.figure} not found. Please choose a valid figure id.")
 
     # generate_figure_2()
-
-
     # kruskalwallis()
 
