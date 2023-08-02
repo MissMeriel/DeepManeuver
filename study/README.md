@@ -11,8 +11,6 @@ It also contains the scripts to reproduce the results tables in the paper study 
 
 ### Table III
 
-### Table V
-
 ### Figure VI
 
 ## Appendix
