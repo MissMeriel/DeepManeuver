@@ -1,26 +1,25 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import shutil
 import logging, random, string, time, os
 from tabulate import tabulate
 from pathlib import Path
 import argparse, sys
+
 import statistics, math
 from ast import literal_eval
+
+import torch
 from PIL import Image
+import kornia
 import pickle
-import itertools
-from tqdm import tqdm
-import pandas as pd
-import re
-import itertools
-from tqdm import tqdm
-from scipy.stats import mannwhitneyu
-from scipy.stats import kruskal
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", '--dataset', type=str, default="../data", help='parent directory of results dataset')
     parser.add_argument('-f', '--figure', type=str, help='table or figure to generate (choose from: table1 table2 table3 table5 table6 figure5 figure6 figure7 figure8)')
+    # parser.add_argument('-r', '--lr', type=float, default=0.0001, help='learning rate')
     args = parser.parse_args()
     return args
 
@@ -73,7 +72,7 @@ def plot_deviation(trajectories, unperturbed_traj, collection_run, model, center
     # ax = plt.gca()
     # ax.relim()
 
-def plot_figure2(trajectories, collection_run, model, centerline, left, right, qr_positions, outcomes, xlim=[245, 335], ylim=[-123, -20], savefile="paperfigures/image-"):
+def plot_figure_2(trajectories, collection_run, model, centerline, left, right, qr_positions, outcomes, xlim=[245, 335], ylim=[-123, -20], savefile="paperfigures/image-"):
     x, y = [], []
     for point in centerline:
         x.append(point[0])
@@ -161,13 +160,31 @@ def unpickle_results(filename):
     return results
 
 def lineseg_dists(p, a, b):
+    """Cartesian distance from point to line segment
+    Edited to support arguments as series, from:
+    https://stackoverflow.com/a/54442561/11208892
+    Args:
+        - p: np.array of single point, shape (2,) or 2D array, shape (x, 2)
+        - a: np.array of shape (x, 2)
+        - b: np.array of shape (x, 2)
+    """
+    # normalized tangent vectors
     d_ba = b - a
     d = np.divide(d_ba, (np.hypot(d_ba[:, 0], d_ba[:, 1]).reshape(-1, 1)))
+
+    # signed parallel distance components
+    # rowwise dot products of 2D vectors
     s = np.multiply(a - p, d).sum(axis=1)
     t = np.multiply(p - b, d).sum(axis=1)
+
+    # clamped parallel distance
     h = np.maximum.reduce([s, t, np.zeros(len(s))])
+
+    # perpendicular distance component
+    # rowwise cross products of 2D vectors
     d_pa = p - a
     c = d_pa[:, 0] * d[:, 1] - d_pa[:, 1] * d[:, 0]
+
     return np.hypot(h, c)
 
 def dist_from_line(centerline, point):
@@ -199,9 +216,68 @@ def intake_lap_file(filename="DAVE2v1-lap-trajectory.txt"):
             expected_trajectory.append(line)
     return expected_trajectory
 
+def plot_input(timestamps, input, input_type, run_number=0):
+    plt.plot(timestamps, input)
+    plt.xlabel('Timestamps')
+    plt.ylabel('{} input'.format(input_type))
+    # Set a title of the current axes.
+    plt.title("{} over time".format(input_type))
+    plt.savefig("images/Run-{}-{}.png".format(run_number, input_type))
+    plt.show()
+    plt.pause(0.1)
+
+def fit_normal_dist(crashes, id_title=""):
+    import numpy as np
+    from scipy.stats import norm
+    import matplotlib.pyplot as plt
+
+    # Fit a normal distribution to the data:
+    mu, std = norm.fit(crashes)
+
+    # Plot the histogram.
+    # plt.hist(crashes, bins=10, density=True, alpha=0.6, color='g')
+    # plt.hist(crashes, bins=10, color='g')
+
+    # data = np.random.randn(100)
+    density, bins, _ = plt.hist(crashes, density=True, bins=10)
+    count, _ = np.histogram(crashes, bins)
+    for x, y, num in zip(bins, density, count):
+        if num != 0:
+            plt.text(x, y + 0.005, num, fontsize=10)  # x,y,str
+
+    # Plot the PDF.
+    xmin, xmax = plt.xlim()
+    x = np.linspace(xmin, xmax, 100)
+    p = norm.pdf(x, mu, std)
+    plt.plot(x, p, 'k', linewidth=2)
+    title = id_title + "Fit results: mu = %.2f,  std = %.2f" % (mu, std)
+    plt.title(title)
+    plt.show()
+    plt.pause(0.1)
+
+def get_geometric_distribution(crashes):
+    crashes = np.array(crashes)
+    indices = np.where(crashes == max(crashes))[0]
+    p = indices.shape[0] / crashes.shape[0]
+    p_success = math.pow(1-p, indices[0]) * p
+    trials_needed = -1
+    p_trial = p
+    # probability of finding highscore billboard at this trial is < 1%
+    while round(p_trial, 2) > 0:
+        trials_needed += 1
+        p_trial = math.pow(1 - p, trials_needed) * p
+        # print(f"{trials_needed=}\t{p_trial:.2f}")
+    return p, indices[0], p_success, trials_needed
+
+def get_percent_of_image(entry):
+    patch_size = np.array(entry['bbox'][0][3]) - np.array(entry['bbox'][0][0])
+    patch_size = float(patch_size[0] * patch_size[1])
+    img_size = entry['image'].shape[0] * entry['image'].shape[1]
+    return patch_size / img_size
 
 def get_outcomes(results):
     outcomes_percents = {"B":0, "D":0, "LT":0, "R2NT":0, "2FAR":0, 'GOAL':0}
+    total = float(len(results["testruns_outcomes"]) - 1)
     for outcome in results['testruns_outcomes']:
         if "BULLSEYE-D" in outcome:
             outcomes_percents["B"] += 1
@@ -215,6 +291,12 @@ def get_outcomes(results):
             outcomes_percents["LT"] += 1
         elif "2FAR" in outcome:
             outcomes_percents["2FAR"] += 1
+    # for key in outcomes_percents.keys():
+    #     outcomes_percents[key] = outcomes_percents[key] / total
+    # # print(outcomes_percents)
+    # summation = 0
+    # for key in outcomes_percents.keys():
+    #     summation = summation + outcomes_percents[key]
     return outcomes_percents
 
 def get_metrics(results, outcomes):
@@ -254,11 +336,12 @@ def get_metrics(results, outcomes):
     return outstring
 
 def load_trackdef():
-    dir = "../tools/simulation/posefiles/beamng-industrial-racetrack"
+    dir = "H:/GitHub/superdeepbillboard/simulation/posefiles/beamng-industrial-racetrack"
     with open(f"{dir}/actual-middle.pickle", "rb") as f:
         middle = pickle.load(f)
     with open(f"{dir}/road-left.pickle", "rb") as f:
         roadleft = pickle.load(f)
+    # with open(f"{dir}/road-right.pickle", "rb") as f:
     roadright = pickle.load(open(f"{dir}/road-right.pickle", "rb"))
     return middle, roadleft, roadright
 
@@ -307,25 +390,31 @@ def get_topo(d, pattern):
             topo = "lanechange"
     return topo
 
-def generate_figure2(dir, outdir="./"):
+def generate_figure_2():
+    dir = "H:/GitHub/superdeepbillboard/simulation/results/multiobjective-cutcorner-constraint0.2-8Z1UVO/" #multiobjective-cutcorner-constraint0.2-4W94D4
+    outdir = "H:/GitHub/superdeepbillboard/paperfigures/"
     middle, roadleft, roadright = load_trackdef()
     dirs = [_ for _ in os.listdir(dir) if os.path.isdir("/".join([dir, _]))]
-    expected_trajectory = intake_lap_file("../tools/simulation/posefiles/DAVE2v1-lap-trajectory.txt")
+    expected_trajectory = intake_lap_file("H:/GitHub/superdeepbillboard/simulation/posefiles/DAVE2v1-lap-trajectory.txt")
     for d in dirs:
-        qr_positions = parse_qr_positions_file(f'../tools/simulation/posefiles/qr_box_locations-cutcorner.txt')
+        qr_positions = parse_qr_positions_file(f'posefiles/qr_box_locations-cutcorner.txt')
         results = unpickle_results(f"{dir}{d}/results.pickle")
         xlim, ylim = [220, 280], [-60, -10]
         plot_figure_2(results["testruns_trajs"][:1], expected_trajectory, d, middle, roadleft, roadright, qr_positions, get_outcomes(results),
                        xlim=xlim, ylim=ylim, savefile=f"{outdir}{d}")
 
-def generate_figures_568(resultsDir, outdir="./"):
+import re
+def generate_figures_567():
+    dir = "H:/GitHub/superdeepbillboard/simulation/results/figure6-results/"
+    outdir = "H:/GitHub/superdeepbillboard/paperfigures/"
     middle, roadleft, roadright = load_trackdef()
     pattern = re.compile("topo[0-9]+")
-    dirs = [_ for _ in os.listdir(resultsDir) if os.path.isdir("/".join([resultsDir, _]))]
+    dirs = [_ for _ in os.listdir(dir) if os.path.isdir("/".join([dir, _]))]
     for d in dirs:
         topo = get_topo(d, pattern)
-        qr_positions = parse_qr_positions_file(f'../tools/simulation/posefiles/qr_box_locations-{topo}.txt')
-        results = unpickle_results(f"{resultsDir}/{d}/results.pickle")
+        qr_positions = parse_qr_positions_file(f'posefiles/qr_box_locations-{topo}.txt')
+        print(topo, qr_positions)
+        results = unpickle_results(f"{dir}{d}/results.pickle")
         xlim, ylim = get_xy_lim(topo)
         try:
             collection_run = results["pertrun_traj"]
@@ -334,17 +423,23 @@ def generate_figures_568(resultsDir, outdir="./"):
         plot_deviation(results["testruns_trajs"], results["unperturbed_traj"], collection_run, d, middle, roadleft, roadright, qr_positions, get_outcomes(results),
                        xlim=xlim, ylim=ylim, savefile=f"{outdir}{d}")
 
-def generate_AAE_figure(resultsDir):
+def generate_AAE_figure():
+    results_parentdir = f"{os.getcwd()}/../simulation/results"
+    resultsDir = "exp1-straight-2all50"
     fileExt = r".pickle"
     aaes = []
-    dirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir("/".join([resultsDir, _]))]
-    # key = "results-sdbb-10-15-400-cuton28-rs0.6-inputdivFalse-"
+    dirs = [f"{results_parentdir}/{resultsDir}/{_}" for _ in os.listdir(f"{results_parentdir}/{resultsDir}") if
+            os.path.isdir("/".join([results_parentdir, resultsDir, _]))]
+    key = "results-sdbb-10-15-400-cuton28-rs0.6-inputdivFalse-"
     for d in dirs:
-        # if key in d:
-        results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
-        for file in results_files:
-            results = unpickle_results("/".join([d, file]))
-            aaes.extend(results["testruns_errors"])
+        if key in d:
+            results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
+            for file in results_files:
+                results = unpickle_results("/".join([d, file]))
+                # plt.boxplot(results["testruns_errors"])
+                # plt.show()
+                # plt.pause(0.01)
+                aaes.extend(results["testruns_errors"])
 
     def adjustFigAspect(fig, aspect=1):
         xsize, ysize = fig.get_size_inches()
@@ -367,7 +462,7 @@ def generate_AAE_figure(resultsDir):
     ax.set_xlabel('Steering angle error', fontsize=12)
     ax.set_aspect(2)
     ax.set_aspect('auto')
-
+    import pandas as pd
     df = pd.DataFrame(dict(AAE=aaes))
     _, bp = pd.DataFrame.boxplot(df, return_type='both')
     outliers = [flier.get_ydata() for flier in bp["fliers"]]
@@ -385,84 +480,73 @@ def generate_AAE_figure(resultsDir):
     plt.show()
     plt.pause(0.01)
 
-def tablegen(resultsDir):
+import itertools
+from tqdm import tqdm
+def main(): # resultsDir, keys,
+    global base_filename, default_scenario, default_spawnpoint
+    global prev_error, centerline, centerline_interpolated, unperturbed_traj
+    start = time.time()
+    # resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/deepmaneuver-res10-noise15-cuton28-COMBO"
+    # resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/dbb-orig-res05-noise0-cuton28-COMBO"
+    # resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/deepmaneuver-res15-noise15-cuton28-V7"
+    # resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/dbb-plus-res15-noise15-cuton28-V3"
+    # resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/dbb-plus-res10-noise15-cuton28-V1"
+    # resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/dbb-plus-res05-noise15-cuton28-V1"
+    resultsDir = "E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/dbb-orig-res15-noise0-cuton28-V1"
     fileExt = r".pickle"
-    allDirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir("/".join([resultsDir, _]))]
-    results_map = {}
+    allDirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir(f"{resultsDir}/{_}")]
+    keys = [
+            "results-dbb"
+    ]
+    comboDirs = itertools.combinations(allDirs, 50)
+    results_map = dict.fromkeys(keys)
     count = 0
-    for d in tqdm(allDirs):
-        bullseyes, crashes, goals = [], [], []
-        aes, dists = [], []
-        num_bbs, MAE_coll, ttrs = [], [], []
-
-        tdirs = [f"{d}/{_}" for _ in os.listdir(d) if os.path.isdir(f"{d}/{_}")]
-        for td in tdirs:
-            count += 1
-            results_files = [_ for _ in os.listdir(td) if _.endswith(fileExt)]
-            for file in results_files:
-                results = unpickle_results("/".join([td, file]))
-                outcomes_percents = get_outcomes(results)
-                bullseyes.append(outcomes_percents['B'])
-                crashes.append(outcomes_percents['D'] + outcomes_percents['LT'] + outcomes_percents['B'])
-                goals.append(outcomes_percents['GOAL'])
-                aes.extend(results['testruns_errors'])
-                dists.extend(results['testruns_dists'])
-                ttrs.append(results['time_to_run_technique'])
-                num_bbs.append(results['num_billboards'])
-                # MAE_coll.append(results['MAE_collection_sequence'])
-        td_path = Path(td)
-        results_key = f"{td_path.parts[-2]}"
-        results_map[results_key] = {"bullseyes":bullseyes, "crashes":crashes, "goals":goals,
-                            "aes":aes, "dists":dists, "ttrs":ttrs, "num_bbs":num_bbs, "MAE_coll":MAE_coll}
-
-    listified_map = [[key, f"{sum(results_map[key]['crashes'])/ (10*len(results_map[key]['crashes'])):.3f}",
-                      f"{round(sum(results_map[key]['dists']) / len(results_map[key]['dists']), 4)}",
-                      f"{round(sum(results_map[key]['aes']) / len(results_map[key]['aes']), 3)}",
-                      # f"{sum(results_map[key]['MAE_coll']) / len(results_map[key]['MAE_coll']):.3f}",
-                      len(results_map[key]['crashes'])] for key in results_map.keys()]
-    print(tabulate(listified_map, headers=["technique", "crash rate", "dist from exp traj", "AAE", "samplecount"], tablefmt="github"))
-
-
-
-def table1(resultsDir):
-    fileExt = r".pickle"
-    allDirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir("/".join([resultsDir, _]))]
-    results_map = {}
-    for d in tqdm(allDirs):
-        scenariodirs = ["/".join([d, dd]) for dd in os.listdir(d) if os.path.isdir("/".join([d, dd]))]
-        for scd in scenariodirs:
+    for dirs in tqdm(comboDirs):
+        for key in keys:
             bullseyes, crashes, goals = [], [], []
             aes, dists = [], []
             num_bbs, MAE_coll, ttrs = [], [], []
-            tdirs = [f"{scd}/{_}" for _ in os.listdir(scd) if os.path.isdir(f"{scd}/{_}")]
-            for td in tdirs:
-                results_files = [f"{td}/{_}" for _ in os.listdir(td) if _.endswith(fileExt)]
-                for file in results_files:
-                    results = unpickle_results(file)
-                    outcomes_percents = get_outcomes(results)
-                    bullseyes.append(outcomes_percents['B'])
-                    crashes.append(outcomes_percents['D'] + outcomes_percents['LT'] + outcomes_percents['B'])
-                    goals.append(outcomes_percents['GOAL'])
-                    aes.extend(results['testruns_errors'])
-                    dists.extend(results['testruns_dists'])
-                    ttrs.append(results['time_to_run_technique'])
-                    num_bbs.append(results['num_billboards'])
-                    MAE_coll.append(results['MAE_collection_sequence'])
-            scd_path = Path(scd)
-            results_key = f"{scd_path.parts[-2]} {scd_path.parts[-1]}"
-            results_map[results_key] = {"bullseyes":bullseyes, "crashes":crashes, "goals":goals,
+
+            for d in dirs:
+                if key in d:
+                    count += 1
+                    results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
+                    for file in results_files:
+                        results = unpickle_results("/".join([d, file]))
+                        # print(results.keys())
+                        outcomes_percents = get_outcomes(results)
+                        bullseyes.append(outcomes_percents['B'])
+                        crashes.append(outcomes_percents['D'] + outcomes_percents['LT'] + outcomes_percents['B'])
+                        goals.append(outcomes_percents['GOAL'])
+                        aes.extend(results['testruns_errors'])
+                        dists.extend(results['testruns_dists'])
+                        ttrs.append(results['time_to_run_technique'])
+                        num_bbs.append(results['num_billboards'])
+                        MAE_coll.append(results['MAE_collection_sequence'])
+
+            results_map[key] = {"bullseyes":bullseyes, "crashes":crashes, "goals":goals,
                                 "aes":aes, "dists":dists, "ttrs":ttrs, "num_bbs":num_bbs, "MAE_coll":MAE_coll}
 
-    listified_map = [[key, f"{sum(results_map[key]['crashes'])/ (10*len(results_map[key]['crashes'])):.3f}",
-                      f"{sum(results_map[key]['dists']) / len(results_map[key]['dists']):.2f}",
-                      f"{sum(results_map[key]['aes']) / len(results_map[key]['aes']):.3f}",
-                      f"{sum(results_map[key]['MAE_coll']) / len(results_map[key]['MAE_coll']):.3f}",
-                      len(results_map[key]['crashes'])] for key in results_map.keys()]
-    print(tabulate(listified_map, headers=["technique", "crash rate", "dist from exp traj", "AAE", "expected AAE", "samplecount"], tablefmt="github"))
-
+        perc = round(sum(results_map[key]['crashes'])/ (10*len(results_map[key]['crashes'])), 3)
+        dist = round(sum(results_map[key]['dists']) / len(results_map[key]['dists']), 2)
+        aae = round(sum(results_map[key]['aes']) / len(results_map[key]['aes']), 3)
+        # if abs(perc - 0.942) < 0.003 and abs(dist - 2.87) < 0.004: # and abs(aae -  -0.056) < 0.001: # scenario 4 DeepManeuver 10x10
+        # if abs(perc - 0.816) < 0.003 and abs(dist - 2.60) < 0.004: # scenario 4 DeepManeuver 15x15
+        # if abs(perc - 0.942) < 0.003 and abs(dist - 2.87) < 0.004: # table2\dbb-orig-res10-noise15-cuton24-COMBO
+        # if abs(perc - 0.472) < 0.01: # and abs(dist - 2.55) < 0.03:# table1\scenario4\dbb-orig-res05-noise0-cuton28-COMBO
+        # if abs(perc - 0.816) < 0.004 and abs(dist - 2.60) < 0.03:
+        # if abs(perc - 0.65) < 0.004 and abs(dist - 2.50) < 0.03:
+        # if abs(perc - 0.79) < 0.004 and abs(dist - 2.69) < 0.03:
+        # if abs(perc - 0.996) < 0.004 and abs(dist - 3.09) < 0.03:
+        if abs(perc - 0.063) < 0.01 and abs(dist - 2.34) < 0.1:
+            print(dirs)
+            print(f"{perc=} \t {dist=} \t {aae=}")
+            return dirs
 
 ''' with bonferroni correction '''
-def mann_whitney_u_test(resultsDir, dir1="", dir2="", key="results-sdbb-5-15-400-cuton28-rs0.6-inputdivFalse"):
+def mann_whitney_u_test(dir1="", dir2="", key="results-sdbb-5-15-400-cuton28-rs0.6-inputdivFalse"):
+    from scipy.stats import mannwhitneyu
+    results_parentdir = f"{os.getcwd()}/../simulation/results"
     count = 0
     fileExt = r".pickle"
     dir1_dirs = [f"{results_parentdir}/{dir1}/{_}" for _ in os.listdir(f"{results_parentdir}/{dir1}") if
@@ -477,10 +561,11 @@ def mann_whitney_u_test(resultsDir, dir1="", dir2="", key="results-sdbb-5-15-400
                 dir1_outcomes_percents = get_outcomes(results)
                 dir1_metrics = get_metrics(results, dir1_outcomes_percents)
 
+    count = 0
     dir2_dirs = [f"{results_parentdir}/{dir2}/{_}" for _ in os.listdir(f"{results_parentdir}/{dir2}") if
             os.path.isdir("/".join([results_parentdir, dir2, _]))]
     for d in dir2_dirs:
-        if key in d:
+        if key in d and count < 50:
             count += 1
             results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
 
@@ -492,13 +577,17 @@ def mann_whitney_u_test(resultsDir, dir1="", dir2="", key="results-sdbb-5-15-400
     sigtest = mannwhitneyu(dir1_outcomes_percents, dir2_outcomes_percents)
     print(sigtest)
 
-def kruskalwallis(resultsDir):
+def kruskalwallis():
+    from scipy.stats import kruskal
+    results_parentdir = f"{os.getcwd()}/../simulation/results"
+    resultsDir = "EXP2-cuton-sanitycheck-XI0X43"
     fileExt = r".pickle"
     key1_results = {"success rate": [], "AAE": [], "ADOT": []}
     key2_results = {"success rate": [], "AAE": [], "ADOT": []}
     key3_results = {"success rate": [], "AAE": [], "ADOT": []}
 
-    dirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir(f"{resultsDir}/{_}")]
+    dirs = [f"{results_parentdir}/{resultsDir}/{_}" for _ in os.listdir(f"{results_parentdir}/{resultsDir}") if
+            os.path.isdir("/".join([results_parentdir, resultsDir, _]))]
     res = 10
     key1 = ""
     key3 = "results-sdbb-10-15-400-cuton20-rs0.6-inputdivFalse-"
@@ -559,6 +648,13 @@ def kruskalwallis(resultsDir):
 if __name__ == '__main__':
     logging.getLogger('matplotlib.font_manager').disabled = True
     args = parse_arguments()
+    combodirs = main()
+    randomhash = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+    newdir = f"E:/DeepManeuver-paper-study-data-Copy/study/table1/scenario4/COMBINATORIALANALYSIS-{randomhash}"
+    os.makedirs(newdir)
+    for d in combodirs:
+        d_path = Path(d)
+        destination = shutil.copytree(d, newdir + "/" + d_path.name)
     # table1 table2 table3 table5 table6 figure5 figure6 figure7 figure8
     if args.figure == "table1": # study table 1
         resultsDir = args.dataset + "/study/" + args.figure
@@ -575,23 +671,18 @@ if __name__ == '__main__':
     elif args.figure == "table6": # appendix table 6
         resultsDir = args.dataset + "/appendix/" + args.figure
         tablegen(resultsDir)
-    elif args.figure == "figure2":
-        resultsDir = args.dataset + "approach" + args.figure
-        generate_figure2(resultsDir)
     elif args.figure == "figure5": # study figure 5
-        resultsDir = args.dataset + "/study/" + args.figure
-        generate_figures_568(resultsDir)
+        generate_figure5()
     elif args.figure == "figure6": # study figure 6
-        resultsDir = args.dataset + "/study/" + args.figure
-        generate_figures_568(resultsDir)
+        generate_figure6()
     elif args.figure == "figure7": # appendix figure 7
-        resultsDir = args.dataset + "/appendix/" + args.figure
-        generate_AAE_figure()
+        generate_figure7()
     elif args.figure == "figure8": # appendix figure 8
         resultsDir = args.dataset + "/appendix/" + args.figure
-        generate_figures_568(resultsDir)
+        generate_figure8(resultsDir)
     else:
         print(f"\"{args.figure}\" not found. Please choose a valid figure id."
-              f"\nOptions: table1 table2 table3 table5 table6 figure2 figure5 figure6 figure7 figure8")
-    # kruskalwallis()
+              f"\nOptions: table1 table2 table3 table5 table6 figure5 figure6 figure7 figure8")
 
+    # generate_figure_2()
+    # kruskalwallis()

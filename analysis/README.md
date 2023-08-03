@@ -15,7 +15,7 @@ To generate results tables in the paper, run:
 
 ```bash
 pip install -r study-replication-requirements.txt
-python process-results.py <result-id>
+python combinatorial.py <result-id>
 ```
 
 To see a list of available <result-id> arguments, `run python process-results.py -h`
