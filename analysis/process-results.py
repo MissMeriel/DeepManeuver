@@ -405,7 +405,7 @@ def tablegen(resultsDir):
                       f"{round(sum(results_map[key]['aes']) / len(results_map[key]['aes']), 3)}",
                       # f"{sum(results_map[key]['MAE_coll']) / len(results_map[key]['MAE_coll']):.3f}",
                       len(results_map[key]['crashes'])] for key in results_map.keys()]
-    print(tabulate(listified_map, headers=["technique", "crash rate", "dist from exp traj", "AAE", "samplecount"], tablefmt="github"))
+    print(tabulate(listified_map, headers=["technique", "success rate", "dist from exp traj", "AAE", "samplecount"], tablefmt="github"))
 
 
 
