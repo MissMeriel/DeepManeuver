@@ -558,7 +558,7 @@ if __name__ == '__main__':
         resultsDir = args.dataset + "/appendix/" + args.figure
         tablegen(resultsDir)
     elif args.figure == "figure2":
-        resultsDir = args.dataset + "approach" + args.figure
+        resultsDir = args.dataset + "/approach/" + args.figure
         generate_figure2(resultsDir)
     elif args.figure == "figure5": # study figure 5
         resultsDir = args.dataset + "/study/" + args.figure
@@ -575,4 +575,3 @@ if __name__ == '__main__':
     else:
         print(f"\"{args.figure}\" not found. Please choose a valid figure id."
               f"\nOptions: table1 table2 table3 table5 table6 figure2 figure5 figure6 figure7 figure8")
-    # kruskalwallis()
