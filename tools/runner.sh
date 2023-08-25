@@ -8,5 +8,5 @@ input_divs=[False, True]
 direction=["left", "right"]
 techniques=["deepman", "dbb-orig", "dbb"]
 samples=50
-
-python3 collect-perturbed-trace-metas-demo1.py C:/Users/Meriel/Documents/  straight1
+path2src="../.."
+python3 collect-perturbed-trace-metas-demo1.py $path2src  straight1
