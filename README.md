@@ -5,7 +5,7 @@ Paper authors: Meriel von Stein, David Shriver, Sebastian Elbaum
 Corresponding author: Meriel von Stein
 
 This repo contains the tools, paper, and study data for "DeepManeuver: Adversarial Test Generation for Trajectory Manipulation of Autonomous Vehicles".
-DOI forthcoming.
+DOI 10.1109/TSE.2023.3301443.
 
 We argue that for adversarial testing perturbations to be effective on autonomous vehicles, they must account for the subtle interplay between the DNN and vehicle states.
 Building on that insight, we develop DeepManeuver, an automated framework that interleaves adversarial test generation with vehicle trajectory physics simulation. 
