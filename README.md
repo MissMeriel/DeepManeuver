@@ -44,7 +44,9 @@ Thus, as the vehicle moves along a trajectory, DeepManeuver enables the refineme
 ```
 
 ## Study Data
-Scripts to recreate the tables and figures can be found in the `./study` directory.
+Directions to download the data from the paper can be found in the `data` directory.
+
+Scripts to recreate the tables and figures can be found in the `analysis` directory.
 
 
 ## Installation
@@ -54,10 +56,11 @@ DeepManeuver relies on Python 3.8, BeamNGpy, and the BeamNG driving simulator.
 Download Python 3.8 [here](https://www.python.org/downloads/release/python-380/).
 Download CUDA Toolkit 11.6 [here](https://developer.nvidia.com/cuda-11-6-0-download-archive)
 
-Activate a virtual environment and install the dependencies for this project:
+Activate a virtual environment and install the dependencies for this project by running `install.sh or running the following`:
 ```bash
-python3.8 -m venv .venv
-. .venv/bin/activate
+python3.8 -m venv .venv-dm
+. .venv-dm/bin/activate
+pip install --upgrade pip
 pip install requirements.txt
 ```
 
@@ -82,20 +85,12 @@ See [Matplotlib issue #18292](https://github.com/matplotlib/matplotlib/issues/18
 python collect-perturbed-trace-metas-demo1.py <path-to-external-dependencies> <road-id>
 ```
 
-## Run DeepBillboard Alone
+The `<path-to-external-dependencies>` parameter points to the parent directory that contains your BeamNG installation and DeepManeuver repo.
 
-```bash
-python -m deepbillboard dave.onnx sequences/Digital/digital_Udacity_straight1/ --direction=right
-```
-
-This will output results to `./samples/digital_Udacity_straight1`. 
-The file `arrows.png` shows all of the images in the sequence with modified signs, and with arrows representing the predicted steering angles (blue for original, green for adversarial).
-`pert_i.png` shows what the sign should look like after iteration `i`, and `pert_imgs_i.png` shows the images in the sequence with the modified sign at iteration `i`.
-
-## Sequences
+The `<road-id>` value is either `7983` or `7982` depending on your BeamNG installation.
 
 
 # License
 The software contained in this repository is covered under the included [LICENSE](LICENSE) file. 
-The paper included in this repository is not covered by this license and is instead covered by the [IEEE Copyright](doi-link-here). 
+The paper included in this repository is not covered by this license and is instead covered by the [IEEE Copyright](https://ieeexplore.ieee.org/document/10213222). 
 The paper is included under the terms of the IEEE copyright to be included on the author's personal servers.
