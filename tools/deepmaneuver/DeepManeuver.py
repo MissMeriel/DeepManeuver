@@ -81,7 +81,6 @@ class DeepManeuver():
     def perturb_images(self, img_arr: torch.Tensor, img_patches: np.ndarray, model: nn.Module, steering_vector: torch.Tensor,
                        bb_size=5, iterations=400, noise_level=25, device=torch.device("cuda"),
                        last_billboard=None, loss_fxn="MDirE", input_divers=False):
-        #  -> np.ndarray, np.ndarray, torch.Tensor
         patch_coords = img_patches[:, 1:].reshape((-1, 4, 2))
         pert_shape = c, h, w = 3, bb_size, bb_size
         src_coords = np.tile(

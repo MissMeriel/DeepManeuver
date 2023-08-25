@@ -106,7 +106,6 @@ class DeepBillboard():
         patch_coords = torch.from_numpy(patch_coords).float()
         # build the transforms to and from image patches
         perspective_transforms = kornia.geometry.transform.get_perspective_transform(src_coords, patch_coords).to(device)
-        # patch_transforms = kornia.geometry.transform.get_perspective_transform(patch_coords, src_coords)
 
         model = model.to(device)
         dataset = DataSequence(img_arr)
@@ -135,19 +134,18 @@ class DeepBillboard():
                 mode="nearest",
                 align_corners=True
             )
-            # warp_masks = kornia.resize(warp_masks, shape)
-            # perturbation_warp = kornia.resize(perturbation_warp, shape)
+
             imgs = imgs * (1 - warp_masks)
             imgs += perturbation_warp * warp_masks
             imgs = torch.clamp(imgs + torch.randn(*imgs.shape).to(device)/noise_level, 0, 1)
 
             y = model(imgs)
-            if self.direction == "left":
+            if self.direction == "left": # left
                 loss = (y - torch.full_like(y, -1)).mean()
-                # loss = F.mse_loss(y, torch.full_like(y, -1))  # left
-            else:
+                # loss = F.mse_loss(y, torch.full_like(y, -1))  
+            else: # right
                 loss = -(y - torch.full_like(y, 1)).mean()
-                # loss = F.mse_loss(y, torch.full_like(y, 1))  # right
+                # loss = F.mse_loss(y, torch.full_like(y, 1))  
 
             print(
                 f"[iteration {i:5d}/{num_iters}] loss={loss.item():2.5f} max(angle)={y.max().item():2.5f} min(angle)={y.min().item():2.5f} mean(angle)={y.mean().item():2.5f} median(angle)={torch.median(y).item():2.5f}"
@@ -182,8 +180,7 @@ class DeepBillboard():
                 mode="nearest",
                 align_corners=True
             )
-            # warp_masks = kornia.resize(warp_masks, shape)
-            # perturbation_warp = kornia.resize(perturbation_warp, shape)
+
             perturbed_imgs = imgs * (1 - warp_masks)
             perturbed_imgs += perturbation_warp.cpu() * warp_masks.cpu()
 
