@@ -412,9 +412,11 @@ def tablegen(resultsDir):
 def table1(resultsDir):
     fileExt = r".pickle"
     allDirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir("/".join([resultsDir, _]))]
+    allDirs.sort()
     results_map = {}
     for d in tqdm(allDirs):
         scenariodirs = ["/".join([d, dd]) for dd in os.listdir(d) if os.path.isdir("/".join([d, dd]))]
+        scenariodirs.sort()
         for scd in scenariodirs:
             bullseyes, crashes, goals = [], [], []
             aes, dists = [], []
@@ -442,12 +444,12 @@ def table1(resultsDir):
                       f"{sum(results_map[key]['dists']) / len(results_map[key]['dists']):.2f}",
                       f"{sum(results_map[key]['aes']) / len(results_map[key]['aes']):.3f}",
                       f"{sum(results_map[key]['MAE_coll']) / len(results_map[key]['MAE_coll']):.3f}",
-                      len(results_map[key]['crashes'])] for key in results_map.keys()]
-    print(tabulate(listified_map, headers=["technique", "crash rate", "dist from exp traj", "AAE", "expected AAE", "samplecount"], tablefmt="github"))
+                    ] for key in results_map.keys()]
+    print(tabulate(listified_map, headers=["technique", "success rate", "dist from exp traj", "AAE", "expected AAE"], tablefmt="github"))
 
 
 ''' with bonferroni correction '''
-def mann_whitney_u_test(resultsDir, dir1="", dir2="", key="results-sdbb-5-15-400-cuton28-rs0.6-inputdivFalse"):
+def mann_whitney_u_test(resultsDir, dir1, dir2, key):
     count = 0
     fileExt = r".pickle"
     dir1_dirs = [f"{results_parentdir}/{dir1}/{_}" for _ in os.listdir(f"{results_parentdir}/{dir1}") if
@@ -474,7 +476,7 @@ def mann_whitney_u_test(resultsDir, dir1="", dir2="", key="results-sdbb-5-15-400
     sigtest = mannwhitneyu(dir1_outcomes_percents, dir2_outcomes_percents)
     print(sigtest)
 
-def kruskalwallis(resultsDir):
+def kruskalwallis(resultsDir, key1, key2, key3):
     fileExt = r".pickle"
     key1_results = {"success rate": [], "AAE": [], "ADOT": []}
     key2_results = {"success rate": [], "AAE": [], "ADOT": []}
@@ -482,9 +484,6 @@ def kruskalwallis(resultsDir):
 
     dirs = [f"{resultsDir}/{_}" for _ in os.listdir(f"{resultsDir}") if os.path.isdir(f"{resultsDir}/{_}")]
     res = 10
-    key1 = ""
-    key3 = "results-sdbb-10-15-400-cuton20-rs0.6-inputdivFalse-"
-    key2 = "results-dbb-plus-10-15-400-cuton20-rs0.6-inputdivFalse-"
     for d in dirs:
         if key1 in d:
             results_files = [_ for _ in os.listdir(d) if _.endswith(fileExt)]
@@ -544,6 +543,7 @@ if __name__ == '__main__':
     # table1 table2 table3 table5 table6 figure5 figure6 figure7 figure8
     if args.figure == "table1": # study table 1
         resultsDir = args.dataset + "/study/" + args.figure
+        print("NOTE: SOME CELLS HAVE BEEN RE-RUN; SOME RESULTS ARE SIMILAR BUT NOT IDENTICAL TO STUDY TABLE 1.")
         table1(resultsDir)
     elif args.figure == "table2": # study table 2
         resultsDir = args.dataset + "/study/" + args.figure
